@@ -1,64 +1,73 @@
-import { createClient } from '../../utils/supabase/server';
-import { redirect } from 'next/navigation';
+'use client';
 
-export const dynamic = 'force-dynamic';
+import { useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  async function login(formData: FormData) {
-    'use server';
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const supabase = await createClient();
-    
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error("SUPABASE LOGIN ERROR:", error.message);
-    } else {
-      redirect('/');
-    }
-  }
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
-  async function signup(formData: FormData) {
-    'use server';
-    const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const supabase = await createClient();
-    
-    const { error } = await supabase.auth.signUp({ email, password });
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
     if (error) {
-      console.error("SUPABASE SIGNUP ERROR:", error.message);
+      setError(error.message);
+      setIsLoading(false);
     } else {
-      redirect('/');
+      router.push('/');
+      router.refresh(); // Forces middleware to re-evaluate auth state
     }
-  }
+  };
 
   return (
-    <div className="flex justify-center items-center min-h-screen p-4">
-      <form className="flex flex-col gap-4 border border-zinc-800 p-8 rounded-lg w-full max-w-sm">
-        <h2 className="text-2xl font-bold text-center mb-4">Expense Tracker</h2>
-        <input 
-          name="email" 
-          type="email" 
-          placeholder="Email address" 
-          required 
-          className="p-3 rounded bg-zinc-900 border border-zinc-800 text-white"
-        />
-        <input 
-          name="password" 
-          type="password" 
-          placeholder="Password" 
-          required 
-          className="p-3 rounded bg-zinc-900 border border-zinc-800 text-white"
-        />
-        <div className="flex gap-4 mt-2">
-          <button formAction={login} className="bg-blue-600 text-white p-3 rounded w-full hover:bg-blue-700">
-            Log In
+    <main className="flex min-h-screen flex-col items-center justify-center p-8 bg-black text-white w-full max-w-[360px] mx-auto">
+      <div className="w-full flex flex-col gap-4">
+        <h1 className="text-2xl font-bold text-center">Sign In</h1>
+        
+        {error && <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded text-sm">{error}</div>}
+        
+        <form onSubmit={handleSignIn} className="flex flex-col gap-4 w-full">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            required
+            className="p-3 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:border-blue-500"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            required
+            className="p-3 bg-gray-900 border border-gray-700 rounded focus:outline-none focus:border-blue-500"
+          />
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="p-3 bg-blue-600 rounded text-white font-medium disabled:opacity-50"
+          >
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
-          <button formAction={signup} className="bg-zinc-800 text-white p-3 rounded w-full hover:bg-zinc-700">
-            Sign Up
-          </button>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+    </main>
   );
 }

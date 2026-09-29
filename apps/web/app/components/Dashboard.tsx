@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
+import { fetchWithAuth } from '../../utils/api';
 
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -22,14 +23,8 @@ export default function Dashboard({ userId }: { userId: string }) {
       }
     });
 
-    // 2. Fetch expenses through your NestJS API
-    fetch(`${API_URL}/expenses`, { headers: { 'x-user-id': userId } })
-      .then(res => {
-        if (!res.ok) throw new Error(`API returned status: ${res.status}`);
-        return res.json();
-      })
+    fetchWithAuth('/expenses')
       .then(data => {
-        // Enforce that only arrays are saved to state
         setExpenses(Array.isArray(data) ? data : []);
       })
       .catch(err => {
