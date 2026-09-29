@@ -1,6 +1,8 @@
 import { createClient } from '../../utils/supabase/server';
 import { redirect } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   async function login(formData: FormData) {
     'use server';
@@ -9,7 +11,11 @@ export default function LoginPage() {
     const supabase = await createClient();
     
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) redirect('/');
+    if (error) {
+      console.error("SUPABASE LOGIN ERROR:", error.message);
+    } else {
+      redirect('/');
+    }
   }
 
   async function signup(formData: FormData) {
@@ -19,7 +25,11 @@ export default function LoginPage() {
     const supabase = await createClient();
     
     const { error } = await supabase.auth.signUp({ email, password });
-    if (!error) redirect('/');
+    if (error) {
+      console.error("SUPABASE SIGNUP ERROR:", error.message);
+    } else {
+      redirect('/');
+    }
   }
 
   return (
