@@ -10,12 +10,9 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
 
-  // Routes to your local NestJS server or live Vercel API
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
   const supabase = createClient();
 
   useEffect(() => {
-    // 1. Fetch categories directly from Supabase to populate the dropdown
     supabase.from('categories').select('*').eq('user_id', userId).then(({ data }) => {
       if (data && data.length > 0) {
         setCategories(data);
@@ -29,53 +26,51 @@ export default function Dashboard({ userId }: { userId: string }) {
       })
       .catch(err => {
         console.error("Failed to fetch expenses:", err);
-        setExpenses([]); 
+        setExpenses([]);
       });
-  }, [userId, supabase, API_URL]);
+  }, [userId, supabase]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    const res = await fetch(`${API_URL}/expenses`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-user-id': userId 
-      },
-      body: JSON.stringify({
-        user_id: userId,
-        category_id: categoryId,
-        amount_minor: Math.round(parseFloat(amount) * 100), 
-        spent_on: new Date().toISOString().split('T')[0],
-        note
-      })
-    });
 
-    if (res.ok) {
-      const newExpense = await res.json();
+    try {
+      const newExpense = await fetchWithAuth('/expenses', {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: userId,
+          category_id: categoryId,
+          amount_minor: Math.round(parseFloat(amount) * 100),
+          spent_on: new Date().toISOString().split('T')[0],
+          note
+        })
+      });
+
       setExpenses([newExpense, ...expenses]);
       setAmount('');
       setNote('');
+    } catch (err) {
+      console.error("Failed to add expense:", err);
     }
   };
 
   return (
     <div className="w-full max-w-2xl mt-8">
       <form onSubmit={handleAddExpense} className="flex gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-        <input 
-          type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} 
-          placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-24" 
+        <input
+          type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
+          placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-24"
         />
-        <select 
-          value={categoryId} onChange={(e) => setCategoryId(e.target.value)} 
+        <select
+          value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
           className="p-2 rounded bg-zinc-800 text-white flex-1"
         >
           {categories.map(cat => (
             <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
-        <input 
-          type="text" value={note} onChange={(e) => setNote(e.target.value)} 
-          placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white flex-1" 
+        <input
+          type="text" value={note} onChange={(e) => setNote(e.target.value)}
+          placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white flex-1"
         />
         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700">Add</button>
       </form>
