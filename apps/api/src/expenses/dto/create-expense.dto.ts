@@ -1,6 +1,6 @@
 export class CreateExpenseDto {
-    title : string;
-    amount : number;
-    category : string;
-    date : string;
-}
+    category_id: string;
+    amount_minor: number;
+    spent_on: string;
+    note?: string;
+  }
