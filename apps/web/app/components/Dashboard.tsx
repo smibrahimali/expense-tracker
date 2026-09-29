@@ -55,14 +55,14 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   return (
     <div className="w-full max-w-2xl mt-8">
-      <form onSubmit={handleAddExpense} className="flex gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+      <form onSubmit={handleAddExpense} className="flex flex-col md:flex-row gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
         <input
           type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
-          placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-24"
+          placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full md:w-24"
         />
         <select
           value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-          className="p-2 rounded bg-zinc-800 text-white flex-1"
+          className="p-2 rounded bg-zinc-800 text-white w-full md:flex-1"
         >
           {categories.map(cat => (
             <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -70,9 +70,11 @@ export default function Dashboard({ userId }: { userId: string }) {
         </select>
         <input
           type="text" value={note} onChange={(e) => setNote(e.target.value)}
-          placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white flex-1"
+          placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full md:flex-1"
         />
-        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700">Add</button>
+        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full md:w-auto">
+          Add
+        </button>
       </form>
 
       <div className="space-y-4">
