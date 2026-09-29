@@ -8,11 +8,13 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
 
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
+  const userId = session?.user?.id; // Grab the user's UUID here
 
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(userId ? { 'x-user-id': userId } : {}), // Pass it to match the backend controller
   };
 
   // Maps to the required /api/v1 NestJS prefix
