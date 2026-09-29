@@ -24,8 +24,18 @@ export default function Dashboard({ userId }: { userId: string }) {
 
     // 2. Fetch expenses through your NestJS API
     fetch(`${API_URL}/expenses`, { headers: { 'x-user-id': userId } })
-      .then(res => res.json())
-      .then(data => setExpenses(data || []));
+      .then(res => {
+        if (!res.ok) throw new Error(`API returned status: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        // Enforce that only arrays are saved to state
+        setExpenses(Array.isArray(data) ? data : []);
+      })
+      .catch(err => {
+        console.error("Failed to fetch expenses:", err);
+        setExpenses([]); 
+      });
   }, [userId, supabase, API_URL]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -39,7 +49,7 @@ export default function Dashboard({ userId }: { userId: string }) {
       body: JSON.stringify({
         user_id: userId,
         category_id: categoryId,
-        amount_minor: Math.round(parseFloat(amount) * 100), // Convert to minor units to prevent float math errors
+        amount_minor: Math.round(parseFloat(amount) * 100), 
         spent_on: new Date().toISOString().split('T')[0],
         note
       })
@@ -76,15 +86,19 @@ export default function Dashboard({ userId }: { userId: string }) {
       </form>
 
       <div className="space-y-4">
-        {expenses.map(exp => (
-          <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-            <div>
-              <p className="font-semibold text-lg">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
-              <p className="text-sm text-zinc-400">{exp.note}</p>
+        {Array.isArray(expenses) && expenses.length > 0 ? (
+          expenses.map(exp => (
+            <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+              <div>
+                <p className="font-semibold text-lg">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
+                <p className="text-sm text-zinc-400">{exp.note}</p>
+              </div>
+              <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
             </div>
-            <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
-          </div>
-        ))}
+          ))
+        ) : (
+          <p className="text-zinc-500 text-center py-4">No expenses found or API connection failed.</p>
+        )}
       </div>
     </div>
   );
