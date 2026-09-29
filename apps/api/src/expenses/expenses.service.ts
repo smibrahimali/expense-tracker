@@ -1,26 +1,64 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateExpenseDto } from './dto/create-expense.dto.js';
 import { UpdateExpenseDto } from './dto/update-expense.dto.js';
+import { SupabaseService } from '../supabase/supabase.service.js';
 
 @Injectable()
 export class ExpensesService {
-  create(createExpenseDto: CreateExpenseDto) {
-    return 'This action adds a new expense';
+  constructor(private readonly supabaseService: SupabaseService) {}
+
+  async create(createExpenseDto: CreateExpenseDto) {
+    const { data, error } = await this.supabaseService.getClient()
+      .from('expenses')
+      .insert([createExpenseDto])
+      .select()
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
   }
 
-  findAll() {
-    return `This action returns all expenses`;
+  async findAll(userId: string) {
+    const { data, error } = await this.supabaseService.getClient()
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('spent_on', { ascending: false });
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} expense`;
+  async findOne(id: string) {
+    const { data, error } = await this.supabaseService.getClient()
+      .from('expenses')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
   }
 
-  update(id: number, updateExpenseDto: UpdateExpenseDto) {
-    return `This action updates a #${id} expense`;
+  async update(id: string, updateExpenseDto: UpdateExpenseDto) {
+    const { data, error } = await this.supabaseService.getClient()
+      .from('expenses')
+      .update(updateExpenseDto)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return data;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} expense`;
+  async remove(id: string) {
+    const { error } = await this.supabaseService.getClient()
+      .from('expenses')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new InternalServerErrorException(error.message);
+    return { message: 'Expense deleted successfully' };
   }
 }
