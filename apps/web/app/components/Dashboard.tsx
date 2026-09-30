@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
 import { fetchWithAuth } from '../../utils/api';
+// 1. Import Recharts components
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -32,7 +34,6 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       const newExpense = await fetchWithAuth('/expenses', {
         method: 'POST',
@@ -53,11 +54,8 @@ export default function Dashboard({ userId }: { userId: string }) {
     }
   };
 
-  // Handle deleting an expense
   const handleDeleteExpense = async (id: string) => {
-    // Optimistically remove it from the UI immediately to make it feel snappy
     setExpenses(expenses.filter(exp => exp.id !== id));
-
     try {
       await fetchWithAuth(`/expenses/${id}`, {
         method: 'DELETE',
@@ -69,12 +67,60 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   const totalSpent = expenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
 
+  // 2. Transform expense data for the chart
+  const expensesByCategory = expenses.reduce((acc, exp) => {
+    const catName = categories.find(c => c.id === exp.category_id)?.name || 'Other';
+    const amountVal = exp.amount_minor / 100;
+    acc[catName] = (acc[catName] || 0) + amountVal;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const chartData = Object.entries(expensesByCategory).map(([name, value]) => ({
+    name,
+    value
+  }));
+
+  // 3. Define professional chart colors (Emerald, Blue, Amber, Rose, Purple)
+  const COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa'];
+
   return (
     <div className="w-full max-w-2xl mt-8">
+      
       <div className="mb-8 p-6 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
         <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-2">Total Spent</h2>
         <p className="text-4xl font-bold text-emerald-400">PKR {totalSpent.toFixed(2)}</p>
       </div>
+
+      {/* 4. Render the Analytics Chart if there is data */}
+      {chartData.length > 0 && (
+        <div className="mb-8 p-6 bg-zinc-900 rounded-lg border border-zinc-800 h-72">
+          <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4 text-center">Spending Breakdown</h2>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={80}
+                paddingAngle={5}
+                dataKey="value"
+                stroke="none"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value: any) => `PKR ${Number(value).toFixed(2)}`}
+                contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
         <input
@@ -102,7 +148,7 @@ export default function Dashboard({ userId }: { userId: string }) {
         {Array.isArray(expenses) && expenses.length > 0 ? (
           expenses.map(exp => (
             <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-lg">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
                 <p className="text-sm text-zinc-400">{exp.note}</p>
               </div>
