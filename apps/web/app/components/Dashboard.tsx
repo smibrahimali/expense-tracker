@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
 import { fetchWithAuth } from '../../utils/api';
-// 1. Import Recharts components
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function Dashboard({ userId }: { userId: string }) {
@@ -11,6 +10,9 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
+  
+  // 1. Add state for the time filter
+  const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
 
   const supabase = createClient();
 
@@ -57,56 +59,68 @@ export default function Dashboard({ userId }: { userId: string }) {
   const handleDeleteExpense = async (id: string) => {
     setExpenses(expenses.filter(exp => exp.id !== id));
     try {
-      await fetchWithAuth(`/expenses/${id}`, {
-        method: 'DELETE',
-      });
+      await fetchWithAuth(`/expenses/${id}`, { method: 'DELETE' });
     } catch (err) {
       console.error("Failed to delete expense:", err);
     }
   };
 
-  const totalSpent = expenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+  // 2. Filter expenses based on the selected time period
+  const filteredExpenses = expenses.filter(exp => {
+    if (timeFilter === 'all') return true;
+    
+    const expDate = new Date(exp.spent_on);
+    const today = new Date();
+    return expDate.getMonth() === today.getMonth() && expDate.getFullYear() === today.getFullYear();
+  });
 
-  // 2. Transform expense data for the chart
-  const expensesByCategory = expenses.reduce((acc, exp) => {
+  // 3. Update calculations to use filteredExpenses instead of expenses
+  const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+
+  const expensesByCategory = filteredExpenses.reduce((acc, exp) => {
     const catName = categories.find(c => c.id === exp.category_id)?.name || 'Other';
     const amountVal = exp.amount_minor / 100;
     acc[catName] = (acc[catName] || 0) + amountVal;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(expensesByCategory).map(([name, value]) => ({
-    name,
-    value
-  }));
-
-  // 3. Define professional chart colors (Emerald, Blue, Amber, Rose, Purple)
+  const chartData = Object.entries(expensesByCategory).map(([name, value]) => ({ name, value }));
   const COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa'];
 
   return (
     <div className="w-full max-w-2xl mt-8">
       
+      {/* 4. Add the Toggle Switch UI */}
+      <div className="flex justify-end mb-4">
+        <div className="bg-zinc-900 p-1 rounded-lg border border-zinc-800 inline-flex">
+          <button
+            onClick={() => setTimeFilter('month')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'month' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}
+          >
+            This Month
+          </button>
+          <button
+            onClick={() => setTimeFilter('all')}
+            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'all' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}
+          >
+            All Time
+          </button>
+        </div>
+      </div>
+
       <div className="mb-8 p-6 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-2">Total Spent</h2>
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-2">
+          {timeFilter === 'month' ? 'Total Spent This Month' : 'Total Spent'}
+        </h2>
         <p className="text-4xl font-bold text-emerald-400">PKR {totalSpent.toFixed(2)}</p>
       </div>
 
-      {/* 4. Render the Analytics Chart if there is data */}
       {chartData.length > 0 && (
         <div className="mb-8 p-6 bg-zinc-900 rounded-lg border border-zinc-800 h-72">
           <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4 text-center">Spending Breakdown</h2>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="value"
-                stroke="none"
-              >
+              <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
@@ -123,30 +137,19 @@ export default function Dashboard({ userId }: { userId: string }) {
       )}
 
       <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-        <input
-          type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
-          placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full"
-        />
-        <select
-          value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-          className="p-2 rounded bg-zinc-800 text-white w-full"
-        >
+        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full" />
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full">
           {categories.map(cat => (
             <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
         </select>
-        <input
-          type="text" value={note} onChange={(e) => setNote(e.target.value)}
-          placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full"
-        />
-        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full">
-          Add
-        </button>
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full" />
+        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full">Add</button>
       </form>
 
       <div className="space-y-4">
-        {Array.isArray(expenses) && expenses.length > 0 ? (
-          expenses.map(exp => (
+        {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
+          filteredExpenses.map(exp => (
             <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
               <div className="flex-1">
                 <p className="font-semibold text-lg">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
@@ -154,11 +157,7 @@ export default function Dashboard({ userId }: { userId: string }) {
               </div>
               <div className="flex items-center gap-4">
                 <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
-                <button
-                  onClick={() => handleDeleteExpense(exp.id)}
-                  className="text-zinc-600 hover:text-red-500 transition-colors p-2"
-                  title="Delete expense"
-                >
+                <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-600 hover:text-red-500 transition-colors p-2" title="Delete expense">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -170,7 +169,7 @@ export default function Dashboard({ userId }: { userId: string }) {
             </div>
           ))
         ) : (
-          <p className="text-zinc-500 text-center py-4">No expenses found or API connection failed.</p>
+          <p className="text-zinc-500 text-center py-4">No expenses found for this period.</p>
         )}
       </div>
     </div>
