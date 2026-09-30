@@ -53,8 +53,17 @@ export default function Dashboard({ userId }: { userId: string }) {
     }
   };
 
+  // Calculate the total spent in standard PKR
+  const totalSpent = expenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+
   return (
     <div className="w-full max-w-2xl mt-8">
+      {/* Total Spending Summary Widget */}
+      <div className="mb-8 p-6 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-2">Total Spent</h2>
+        <p className="text-4xl font-bold text-emerald-400">PKR {totalSpent.toFixed(2)}</p>
+      </div>
+
       <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
         <input
           type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)}
