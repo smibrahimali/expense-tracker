@@ -23,8 +23,7 @@ export class ExpensesService {
       .from('expenses')
       .select('*')
       .eq('user_id', userId)
-      .order('spent_on', { ascending: false })
-      .order('created_at', { ascending: false }); // Ensures newest entries stay on top for ties
+      .order('spent_on', { ascending: false });
 
     if (error) throw new InternalServerErrorException(error.message);
     return data;
