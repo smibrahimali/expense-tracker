@@ -7,13 +7,19 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  
+  // Create Form State
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
   
-  // 1. Add state for the time filter
-  const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
+  // Edit Form State
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editCategoryId, setEditCategoryId] = useState('');
+  const [editNote, setEditNote] = useState('');
 
+  const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
   const supabase = createClient();
 
   useEffect(() => {
@@ -25,13 +31,8 @@ export default function Dashboard({ userId }: { userId: string }) {
     });
 
     fetchWithAuth('/expenses')
-      .then(data => {
-        setExpenses(Array.isArray(data) ? data : []);
-      })
-      .catch(err => {
-        console.error("Failed to fetch expenses:", err);
-        setExpenses([]);
-      });
+      .then(data => setExpenses(Array.isArray(data) ? data : []))
+      .catch(err => console.error("Failed to fetch expenses:", err));
   }, [userId, supabase]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -47,7 +48,6 @@ export default function Dashboard({ userId }: { userId: string }) {
           note
         })
       });
-
       setExpenses([newExpense, ...expenses]);
       setAmount('');
       setNote('');
@@ -65,16 +65,40 @@ export default function Dashboard({ userId }: { userId: string }) {
     }
   };
 
-  // 2. Filter expenses based on the selected time period
+  // 1. Initialize the edit row with current values
+  const handleEditClick = (exp: any) => {
+    setEditingId(exp.id);
+    setEditAmount((exp.amount_minor / 100).toString());
+    setEditCategoryId(exp.category_id);
+    setEditNote(exp.note || '');
+  };
+
+  // 2. Send the PATCH request and update the UI
+  const handleSaveEdit = async (id: string) => {
+    try {
+      const updatedExpense = await fetchWithAuth(`/expenses/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          category_id: editCategoryId,
+          amount_minor: Math.round(parseFloat(editAmount) * 100),
+          note: editNote
+        })
+      });
+      
+      setExpenses(expenses.map(exp => exp.id === id ? { ...exp, ...updatedExpense } : exp));
+      setEditingId(null);
+    } catch (err) {
+      console.error("Failed to update expense:", err);
+    }
+  };
+
   const filteredExpenses = expenses.filter(exp => {
     if (timeFilter === 'all') return true;
-    
     const expDate = new Date(exp.spent_on);
     const today = new Date();
     return expDate.getMonth() === today.getMonth() && expDate.getFullYear() === today.getFullYear();
   });
 
-  // 3. Update calculations to use filteredExpenses instead of expenses
   const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
 
   const expensesByCategory = filteredExpenses.reduce((acc, exp) => {
@@ -89,29 +113,15 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   return (
     <div className="w-full max-w-2xl mt-8">
-      
-      {/* 4. Add the Toggle Switch UI */}
       <div className="flex justify-end mb-4">
         <div className="bg-zinc-900 p-1 rounded-lg border border-zinc-800 inline-flex">
-          <button
-            onClick={() => setTimeFilter('month')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'month' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}
-          >
-            This Month
-          </button>
-          <button
-            onClick={() => setTimeFilter('all')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'all' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}
-          >
-            All Time
-          </button>
+          <button onClick={() => setTimeFilter('month')} className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'month' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}>This Month</button>
+          <button onClick={() => setTimeFilter('all')} className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'all' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}>All Time</button>
         </div>
       </div>
 
       <div className="mb-8 p-6 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col items-center justify-center">
-        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-2">
-          {timeFilter === 'month' ? 'Total Spent This Month' : 'Total Spent'}
-        </h2>
+        <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-2">{timeFilter === 'month' ? 'Total Spent This Month' : 'Total Spent'}</h2>
         <p className="text-4xl font-bold text-emerald-400">PKR {totalSpent.toFixed(2)}</p>
       </div>
 
@@ -121,15 +131,9 @@ export default function Dashboard({ userId }: { userId: string }) {
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
+                {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
               </Pie>
-              <Tooltip 
-                formatter={(value: any) => `PKR ${Number(value).toFixed(2)}`}
-                contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }}
-                itemStyle={{ color: '#fff' }}
-              />
+              <Tooltip formatter={(value: any) => `PKR ${Number(value).toFixed(2)}`} contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
             </PieChart>
           </ResponsiveContainer>
@@ -139,9 +143,7 @@ export default function Dashboard({ userId }: { userId: string }) {
       <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full" />
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full">
-          {categories.map(cat => (
-            <option key={cat.id} value={cat.id}>{cat.name}</option>
-          ))}
+          {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
         </select>
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full" />
         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full">Add</button>
@@ -151,21 +153,39 @@ export default function Dashboard({ userId }: { userId: string }) {
         {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
           filteredExpenses.map(exp => (
             <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-              <div className="flex-1">
-                <p className="font-semibold text-lg">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
-                <p className="text-sm text-zinc-400">{exp.note}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
-                <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-600 hover:text-red-500 transition-colors p-2" title="Delete expense">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    <line x1="10" y1="11" x2="10" y2="17"></line>
-                    <line x1="14" y1="11" x2="14" y2="17"></line>
-                  </svg>
-                </button>
-              </div>
+              
+              {/* 3. Conditional Rendering: Edit Mode vs View Mode */}
+              {editingId === exp.id ? (
+                <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center w-full">
+                  <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm" />
+                  <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm">
+                    {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                  </select>
+                  <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleSaveEdit(exp.id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm w-full">Save</button>
+                    <button onClick={() => setEditingId(null)} className="bg-zinc-700 text-white px-3 py-1.5 rounded text-sm w-full">Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex-1">
+                    <p className="font-semibold text-lg">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
+                    <p className="text-sm text-zinc-400">{exp.note}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
+                    <div className="flex gap-1">
+                      <button onClick={() => handleEditClick(exp)} className="text-zinc-600 hover:text-blue-500 transition-colors p-2" title="Edit expense">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      </button>
+                      <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-600 hover:text-red-500 transition-colors p-2" title="Delete expense">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ))
         ) : (
