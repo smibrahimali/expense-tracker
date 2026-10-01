@@ -8,16 +8,18 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   
-  // Create Form State
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
   
-  // Edit Form State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editNote, setEditNote] = useState('');
+
+  // Category Management State
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
   const supabase = createClient();
@@ -65,7 +67,6 @@ export default function Dashboard({ userId }: { userId: string }) {
     }
   };
 
-  // 1. Initialize the edit row with current values
   const handleEditClick = (exp: any) => {
     setEditingId(exp.id);
     setEditAmount((exp.amount_minor / 100).toString());
@@ -73,7 +74,6 @@ export default function Dashboard({ userId }: { userId: string }) {
     setEditNote(exp.note || '');
   };
 
-  // 2. Send the PATCH request and update the UI
   const handleSaveEdit = async (id: string) => {
     try {
       const updatedExpense = await fetchWithAuth(`/expenses/${id}`, {
@@ -89,6 +89,26 @@ export default function Dashboard({ userId }: { userId: string }) {
       setEditingId(null);
     } catch (err) {
       console.error("Failed to update expense:", err);
+    }
+  };
+
+  // Create Custom Category
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([{ name: newCategoryName, user_id: userId }])
+        .select();
+      
+      if (data && data.length > 0) {
+        setCategories([...categories, data[0]]);
+        setCategoryId(data[0].id); // Auto-select the new category
+      }
+      setNewCategoryName('');
+      setShowCategoryForm(false);
+    } catch (err) {
+      console.error("Failed to add category:", err);
     }
   };
 
@@ -109,7 +129,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   }, {} as Record<string, number>);
 
   const chartData = Object.entries(expensesByCategory).map(([name, value]) => ({ name, value }));
-  const COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa'];
+  const COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa', '#2dd4bf', '#a3e635'];
 
   return (
     <div className="w-full max-w-2xl mt-8">
@@ -140,13 +160,40 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
       )}
 
+      {/* Category Management UI */}
+      <div className="flex justify-between items-end mb-2 px-1 mt-6">
+        <h3 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Log Expense</h3>
+        <button 
+          onClick={() => setShowCategoryForm(!showCategoryForm)}
+          className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+        >
+          {showCategoryForm ? 'Close Category Form' : '+ New Category'}
+        </button>
+      </div>
+
+      {showCategoryForm && (
+        <form onSubmit={handleAddCategory} className="flex gap-2 mb-4 bg-zinc-900 p-3 rounded-lg border border-zinc-800">
+          <input 
+            type="text" 
+            value={newCategoryName} 
+            onChange={(e) => setNewCategoryName(e.target.value)} 
+            placeholder="Category Name (e.g. Padel Match)" 
+            required 
+            className="p-2 rounded bg-zinc-800 text-white w-full text-sm outline-none focus:border-emerald-500 border border-transparent" 
+          />
+          <button type="submit" className="bg-zinc-700 text-white px-4 py-2 rounded font-medium hover:bg-zinc-600 text-sm whitespace-nowrap transition-colors">
+            Create
+          </button>
+        </form>
+      )}
+
       <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full" />
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full">
+        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
+        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full outline-none">
           {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
         </select>
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full" />
-        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full">Add</button>
+        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
+        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full transition-colors">Add Expense</button>
       </form>
 
       <div className="space-y-4">
@@ -154,7 +201,6 @@ export default function Dashboard({ userId }: { userId: string }) {
           filteredExpenses.map(exp => (
             <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
               
-              {/* 3. Conditional Rendering: Edit Mode vs View Mode */}
               {editingId === exp.id ? (
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center w-full">
                   <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm" />
