@@ -3,14 +3,10 @@ import { AppModule } from './app.module.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  app.setGlobalPrefix('api/v1');
-
-  app.enableCors({
-    origin: '*', // Change this to your Vercel frontend URL once you have it
-    credentials: true,
-  });
-
-  await app.listen(process.env.PORT || 3000);
+  
+  // Explicitly allow the frontend to bypass browser security blocks
+  app.enableCors();
+  
+  await app.listen(process.env.PORT || 3001);
 }
 bootstrap();
