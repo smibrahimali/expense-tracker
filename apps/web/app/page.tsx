@@ -1,47 +1,71 @@
-import { createClient } from '../utils/supabase/server';
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Dashboard from './components/Dashboard';
+import { createClient } from '../utils/client';
 
-export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function Home() {
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
 
-  async function signOut() {
-    'use server';
-    const supabase = await createClient();
-    await supabase.auth.signOut();
-    redirect('/');
+  useEffect(() => {
+    // 1. Check for an existing session on load
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+      } else {
+        setUserId(session.user.id);
+      }
+      setLoading(false);
+    };
+
+    checkUser();
+
+    // 2. Listen for auth changes (like signing out)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        router.push('/login');
+      } else {
+        setUserId(session.user.id);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [router, supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <p className="text-zinc-400 font-medium tracking-wide animate-pulse">Loading session...</p>
+      </div>
+    );
   }
 
+  // If no user, the useEffect will redirect them. Render nothing in the meantime.
+  if (!userId) return null;
+
   return (
-    <main className="flex min-h-screen flex-col items-center p-8 md:p-24">
-      {user ? (
-        <div className="flex flex-col items-center w-full">
-          <div className="flex justify-between w-full max-w-2xl items-center border-b border-zinc-800 pb-6">
-            <div>
-              <h1 className="text-2xl font-bold">Your Dashboard</h1>
-              <p className="text-sm text-zinc-400">{user.email}</p>
-            </div>
-            <form action={signOut}>
-              <button className="text-sm bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2 rounded hover:bg-red-500/20">
-                Sign Out
-              </button>
-            </form>
-          </div>
-          
-          <Dashboard userId={user.id} />
-          
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-6 mt-20">
-          <h1 className="text-4xl font-bold">Expense Tracker</h1>
-          <p className="text-zinc-400">Securely manage your personal finances.</p>
-          <Link className="bg-white text-black px-6 py-3 rounded font-medium hover:bg-zinc-200" href="/login">
-            Get Started
-          </Link>
-        </div>
-      )}
+    <main className="flex min-h-screen flex-col items-center p-4 md:p-8">
+      <div className="w-full max-w-2xl flex justify-between items-center mb-2 mt-4">
+        <h1 className="text-2xl font-bold text-white tracking-tight">Expense Tracker</h1>
+        <button 
+          onClick={async () => {
+            await supabase.auth.signOut();
+            router.push('/login');
+          }} 
+          className="text-sm bg-zinc-800 border border-zinc-700 px-4 py-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
+        >
+          Sign Out
+        </button>
+      </div>
+      
+      {/* 3. Pass the REAL authenticated user ID to your dashboard */}
+      <Dashboard userId={userId} />
     </main>
   );
 }
