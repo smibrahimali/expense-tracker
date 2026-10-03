@@ -4,9 +4,15 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 @Injectable()
 export class SupabaseService {
-  private readonly supabase: SupabaseClient;
+  private supabase: SupabaseClient | null = null;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {}
+
+  getClient(): SupabaseClient {
+    if (this.supabase) {
+      return this.supabase;
+    }
+
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_KEY');
 
@@ -15,10 +21,6 @@ export class SupabaseService {
     }
 
     this.supabase = createClient(supabaseUrl, supabaseKey);
-  }
-
-  // This is the missing method your expenses service is looking for!
-  getClient(): SupabaseClient {
     return this.supabase;
   }
 }

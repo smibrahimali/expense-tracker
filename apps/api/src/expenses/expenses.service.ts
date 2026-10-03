@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { CreateExpenseDto } from './dto/create-expense.dto.js';
-import { UpdateExpenseDto } from './dto/update-expense.dto.js';
-import { SupabaseService } from '../supabase/supabase.service.js';
+import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class ExpensesService {

@@ -1,19 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { createClient } from '@supabase/supabase-js';
+import { SupabaseService } from './supabase/supabase.service';
 
 @Injectable()
 export class ReportsService {
-  private supabase = createClient(
-    process.env.SUPABASE_URL as string, 
-    process.env.SUPABASE_SERVICE_KEY as string
-  );
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   async getMonthlyReport(userId: string, targetMonth: string) {
     const startDate = new Date(`${targetMonth}-01T00:00:00Z`);
     const endDate = new Date(startDate);
     endDate.setMonth(endDate.getMonth() + 1);
 
-    const { data: salaryData } = await this.supabase
+    const supabase = this.supabaseService.getClient();
+
+    const { data: salaryData } = await supabase
       .from('monthly_salaries')
       .select('amount_minor')
       .eq('user_id', userId)
@@ -22,7 +21,7 @@ export class ReportsService {
 
     const salary = salaryData?.amount_minor || 0;
 
-    const { data: expenses } = await this.supabase
+    const { data: expenses } = await supabase
       .from('expenses')
       .select('amount_minor, category_id')
       .eq('user_id', userId)
