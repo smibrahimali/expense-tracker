@@ -8,8 +8,14 @@ export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
   @Post()
-  create(@Body() createExpenseDto: CreateExpenseDto) {
-    return this.expensesService.create(createExpenseDto);
+  create(
+    @Body() createExpenseDto: CreateExpenseDto,
+    @Headers('x-user-id') userId: string,
+  ) {
+    return this.expensesService.create({
+      ...createExpenseDto,
+      user_id: createExpenseDto.user_id || userId,
+    });
   }
 
   @Get()
