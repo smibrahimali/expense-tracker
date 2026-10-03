@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ExpensesService } from './expenses.service.js';
-import { ExpensesController } from './expenses.controller.js';
-import { SupabaseModule } from '../supabase/supabase.module.js';
+import { SupabaseModule } from '../supabase/supabase.module';
+import { ExpensesController } from './expenses.controller';
+import { ExpensesService } from './expenses.service';
 
 @Module({
-  imports: [SupabaseModule], // Bring in the database connection
+  imports: [SupabaseModule],
   controllers: [ExpensesController],
   providers: [ExpensesService],
 })

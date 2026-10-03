@@ -1,12 +1,10 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js';
+import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
-  // Explicitly allow the frontend to bypass browser security blocks
+  app.setGlobalPrefix('api/v1');
   app.enableCors();
-  
   await app.listen(process.env.PORT || 3001);
 }
 bootstrap();

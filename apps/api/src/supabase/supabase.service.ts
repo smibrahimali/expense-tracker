@@ -8,7 +8,7 @@ export class SupabaseService {
 
   constructor(private readonly configService: ConfigService) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const supabaseKey = this.configService.get<string>('SUPABASE_ANON_KEY');
+    const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_KEY');
 
     if (!supabaseUrl || !supabaseKey) {
       throw new InternalServerErrorException('Supabase credentials are missing.');
