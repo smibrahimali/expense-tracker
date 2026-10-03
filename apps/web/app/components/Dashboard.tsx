@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
-import { fetchWithAuth } from '../../utils/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export default function Dashboard({ userId }: { userId: string }) {
@@ -22,7 +21,15 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [newCategoryName, setNewCategoryName] = useState('');
 
   const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
+  const [formError, setFormError] = useState<string | null>(null);
   const supabase = createClient();
+
+  const todayLocal = () => {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
+  };
 
   useEffect(() => {
     supabase.from('categories').select('*').eq('user_id', userId).then(({ data }) => {
@@ -32,38 +39,68 @@ export default function Dashboard({ userId }: { userId: string }) {
       }
     });
 
-    fetchWithAuth('/expenses')
-      .then(data => setExpenses(Array.isArray(data) ? data : []))
-      .catch(err => console.error("Failed to fetch expenses:", err));
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('spent_on', { ascending: false })
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Failed to fetch expenses:', error);
+          setExpenses([]);
+          return;
+        }
+        setExpenses(Array.isArray(data) ? data : []);
+      });
   }, [userId, supabase]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const newExpense = await fetchWithAuth('/expenses', {
-        method: 'POST',
-        body: JSON.stringify({
-          user_id: userId,
-          category_id: categoryId,
-          amount_minor: Math.round(parseFloat(amount) * 100),
-          spent_on: new Date().toISOString().split('T')[0],
-          note
-        })
-      });
-      setExpenses([newExpense, ...expenses]);
-      setAmount('');
-      setNote('');
-    } catch (err) {
-      console.error("Failed to add expense:", err);
+    setFormError(null);
+
+    if (!categoryId) {
+      setFormError('Create or select a category first.');
+      return;
     }
+
+    const amountMinor = Math.round(parseFloat(amount) * 100);
+    if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+      setFormError('Enter an amount greater than 0.');
+      return;
+    }
+
+    const { data: newExpense, error } = await supabase
+      .from('expenses')
+      .insert([{
+        user_id: userId,
+        category_id: categoryId,
+        amount_minor: amountMinor,
+        spent_on: todayLocal(),
+        note: note || null,
+      }])
+      .select()
+      .single();
+
+    if (error || !newExpense) {
+      console.error('Failed to add expense:', error);
+      setFormError(error?.message || 'Failed to add expense.');
+      return;
+    }
+
+    setExpenses([newExpense, ...expenses]);
+    setAmount('');
+    setNote('');
   };
 
   const handleDeleteExpense = async (id: string) => {
+    const previous = expenses;
     setExpenses(expenses.filter(exp => exp.id !== id));
-    try {
-      await fetchWithAuth(`/expenses/${id}`, { method: 'DELETE' });
-    } catch (err) {
-      console.error("Failed to delete expense:", err);
+    const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', userId);
+    if (error) {
+      console.error('Failed to delete expense:', error);
+      setExpenses(previous);
+      setFormError(error.message);
     }
   };
 
@@ -75,41 +112,57 @@ export default function Dashboard({ userId }: { userId: string }) {
   };
 
   const handleSaveEdit = async (id: string) => {
-    try {
-      const updatedExpense = await fetchWithAuth(`/expenses/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          category_id: editCategoryId,
-          amount_minor: Math.round(parseFloat(editAmount) * 100),
-          note: editNote
-        })
-      });
-      
-      setExpenses(expenses.map(exp => exp.id === id ? { ...exp, ...updatedExpense } : exp));
-      setEditingId(null);
-    } catch (err) {
-      console.error("Failed to update expense:", err);
+    const amountMinor = Math.round(parseFloat(editAmount) * 100);
+    if (!Number.isFinite(amountMinor) || amountMinor <= 0) {
+      setFormError('Enter an amount greater than 0.');
+      return;
     }
+
+    const { data: updatedExpense, error } = await supabase
+      .from('expenses')
+      .update({
+        category_id: editCategoryId,
+        amount_minor: amountMinor,
+        note: editNote || null,
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error || !updatedExpense) {
+      console.error('Failed to update expense:', error);
+      setFormError(error?.message || 'Failed to update expense.');
+      return;
+    }
+
+    setExpenses(expenses.map(exp => (exp.id === id ? { ...exp, ...updatedExpense } : exp)));
+    setEditingId(null);
   };
 
-  // Create Custom Category
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .insert([{ name: newCategoryName, user_id: userId }])
-        .select();
-      
-      if (data && data.length > 0) {
-        setCategories([...categories, data[0]]);
-        setCategoryId(data[0].id); // Auto-select the new category
-      }
-      setNewCategoryName('');
-      setShowCategoryForm(false);
-    } catch (err) {
-      console.error("Failed to add category:", err);
+    setFormError(null);
+    const colors = ['#EF4444', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899'];
+    const color = colors[categories.length % colors.length];
+
+    const { data, error } = await supabase
+      .from('categories')
+      .insert([{ name: newCategoryName, user_id: userId, color }])
+      .select();
+
+    if (error) {
+      console.error('Failed to add category:', error);
+      setFormError(error.message);
+      return;
     }
+
+    if (data && data.length > 0) {
+      setCategories([...categories, data[0]]);
+      setCategoryId(data[0].id);
+    }
+    setNewCategoryName('');
+    setShowCategoryForm(false);
   };
 
   const filteredExpenses = expenses.filter(exp => {
@@ -195,6 +248,9 @@ export default function Dashboard({ userId }: { userId: string }) {
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
         <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full transition-colors">Add Expense</button>
       </form>
+      {formError && (
+        <p className="text-red-400 text-sm -mt-6 mb-6">{formError}</p>
+      )}
 
       <div className="space-y-4">
         {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
