@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, CartesianGrid } from 'recharts';
@@ -410,9 +411,9 @@ export default function Dashboard({ userId }: { userId: string }) {
       <div className="space-y-4 mb-8">
         <div className="flex justify-between items-end px-1">
           <h3 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Latest Transactions</h3>
-          <button className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+          <Link href="/transactions" className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors whitespace-nowrap">
             View all
-          </button>
+          </Link>
         </div>
         
         {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
