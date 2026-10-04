@@ -444,13 +444,13 @@ export default function Dashboard({ userId }: { userId: string }) {
         </form>
       )}
 
-      <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+    <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
         <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full outline-none">
           {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
         </select>
         <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
-        <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded font-medium hover:bg-blue-700 w-full transition-colors">Add Expense</button>
+        <button type="submit" className="bg-emerald-600 text-white px-6 py-2 rounded font-medium hover:bg-emerald-700 w-full transition-colors">Add Expense</button>
       </form>
       {formError && (
         <p className="text-red-400 text-sm -mt-6 mb-6">{formError}</p>
