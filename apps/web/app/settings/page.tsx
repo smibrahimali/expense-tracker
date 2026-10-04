@@ -66,7 +66,7 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
 
-    // 1. Safety Check: Verify if category is being used by any expenses
+    // 1. Safety Check
     const { count, error: countError } = await supabase
       .from('expenses')
       .select('*', { count: 'exact', head: true })
@@ -83,7 +83,7 @@ export default function SettingsPage() {
       return;
     }
 
-    // 2. Delete if clear
+    // 2. Delete
     const { error: deleteError } = await supabase
       .from('categories')
       .delete()
@@ -96,6 +96,12 @@ export default function SettingsPage() {
       setSuccess("Category deleted successfully.");
       fetchData();
     }
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    // Force a hard redirect so the app kicks you back to your auth/login page
+    window.location.href = '/'; 
   };
 
   if (!userId) {
@@ -117,7 +123,7 @@ export default function SettingsPage() {
         {error && <div className="mb-4 p-3 bg-red-900/50 border border-red-800 text-red-200 rounded-lg text-sm">{error}</div>}
         {success && <div className="mb-4 p-3 bg-emerald-900/50 border border-emerald-800 text-emerald-200 rounded-lg text-sm">{success}</div>}
 
-        <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden">
+        <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden mb-12">
           <div className="p-4 border-b border-zinc-800">
             <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Your Categories</h2>
           </div>
@@ -170,6 +176,17 @@ export default function SettingsPage() {
           </div>
         </div>
         
+        {/* Account Settings Area */}
+        <div className="border-t border-zinc-800 pt-8">
+          <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Account</h2>
+          <button 
+            onClick={handleSignOut}
+            className="w-full sm:w-auto px-6 py-2 border border-red-900/50 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors font-medium text-sm"
+          >
+            Sign Out
+          </button>
+        </div>
+
       </div>
     </div>
   );

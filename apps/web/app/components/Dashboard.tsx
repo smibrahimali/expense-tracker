@@ -31,6 +31,11 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [formError, setFormError] = useState<string | null>(null);
   const supabase = createClient();
 
+  // Helper to format numbers with commas
+  const formatMoney = (val: number) => {
+    return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const todayLocal = () => {
     const now = new Date();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -130,7 +135,6 @@ export default function Dashboard({ userId }: { userId: string }) {
       }
     }
 
-    // Update local state for both current and historical totals
     const newSalaryVal = amountMinor / 100;
     const difference = newSalaryVal - salary;
     setTotalHistoricalSalary(prev => prev + difference);
@@ -301,7 +305,7 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
         <div className="text-right">
           <span className={`text-3xl font-bold tracking-tight ${totalSavings >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            PKR {totalSavings.toFixed(2)}
+            PKR {formatMoney(totalSavings)}
           </span>
         </div>
       </div>
@@ -345,19 +349,23 @@ export default function Dashboard({ userId }: { userId: string }) {
               <button type="submit" className="bg-emerald-600 text-white px-2 py-1 rounded text-xs hover:bg-emerald-700 font-medium">Save</button>
             </form>
           ) : (
-            <span className="text-lg sm:text-xl font-bold text-white truncate">PKR {salary.toFixed(2)}</span>
+            <span className="text-lg sm:text-xl font-bold text-white truncate" title={`PKR ${formatMoney(salary)}`}>
+              PKR {formatMoney(salary)}
+            </span>
           )}
         </div>
         
         <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Spent</span>
-          <span className="text-lg sm:text-xl font-bold text-emerald-400 truncate">PKR {totalSpent.toFixed(2)}</span>
+          <span className="text-lg sm:text-xl font-bold text-emerald-400 truncate" title={`PKR ${formatMoney(totalSpent)}`}>
+            PKR {formatMoney(totalSpent)}
+          </span>
         </div>
 
         <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Remaining</span>
-          <span className={`text-lg sm:text-xl font-bold truncate ${remaining < 0 ? 'text-red-400' : 'text-white'}`}>
-            PKR {remaining.toFixed(2)}
+          <span className={`text-lg sm:text-xl font-bold truncate ${remaining < 0 ? 'text-red-400' : 'text-white'}`} title={`PKR ${formatMoney(remaining)}`}>
+            PKR {formatMoney(remaining)}
           </span>
         </div>
 
@@ -378,7 +386,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                 <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" stroke="none">
                   {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(value: any) => `PKR ${Number(value).toFixed(2)}`} contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
+                <Tooltip formatter={(value: any) => `PKR ${formatMoney(Number(value))}`} contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
                 <Legend wrapperStyle={{ paddingTop: '10px' }} />
               </PieChart>
             </ResponsiveContainer>
@@ -392,7 +400,7 @@ export default function Dashboard({ userId }: { userId: string }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
               <XAxis dataKey="month" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip 
-                formatter={(value: any) => `PKR ${Number(value).toFixed(2)}`} 
+                formatter={(value: any) => `PKR ${formatMoney(Number(value))}`} 
                 contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }} 
                 itemStyle={{ color: '#fff' }}
                 cursor={{ fill: '#27272a' }}
@@ -486,7 +494,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                       {exp.note && <p className="text-sm text-zinc-400 mt-0.5">{exp.note}</p>}
                     </div>
                     <div className="flex items-center gap-4">
-                      <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
+                      <p className="font-bold text-lg text-emerald-400">PKR {formatMoney(exp.amount_minor / 100)}</p>
                       <div className="flex gap-1">
                         <button onClick={() => handleEditClick(exp)} className="text-zinc-600 hover:text-blue-500 transition-colors p-2" title="Edit expense">
                           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
