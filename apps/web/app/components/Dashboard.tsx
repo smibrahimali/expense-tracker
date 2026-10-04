@@ -10,6 +10,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   
   // Salary State
   const [salary, setSalary] = useState<number>(0);
+  const [totalHistoricalSalary, setTotalHistoricalSalary] = useState<number>(0);
   const [isEditingSalary, setIsEditingSalary] = useState(false);
   const [salaryInput, setSalaryInput] = useState('');
   
@@ -46,21 +47,30 @@ export default function Dashboard({ userId }: { userId: string }) {
       }
     });
 
-    // Fetch Current Month's Salary
+    // Fetch All Historical Salaries
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     
     supabase
       .from('monthly_salaries')
-      .select('amount_minor')
+      .select('month, amount_minor')
       .eq('user_id', userId)
-      .eq('month', currentMonthStr)
-      .single()
       .then(({ data }) => {
         if (data) {
-          setSalary(data.amount_minor / 100);
+          let currentSal = 0;
+          let totalSal = 0;
+          data.forEach(item => {
+            const val = item.amount_minor / 100;
+            totalSal += val;
+            if (item.month === currentMonthStr) {
+              currentSal = val;
+            }
+          });
+          setSalary(currentSal);
+          setTotalHistoricalSalary(totalSal);
         } else {
           setSalary(0);
+          setTotalHistoricalSalary(0);
         }
       });
 
@@ -120,7 +130,11 @@ export default function Dashboard({ userId }: { userId: string }) {
       }
     }
 
-    setSalary(amountMinor / 100);
+    // Update local state for both current and historical totals
+    const newSalaryVal = amountMinor / 100;
+    const difference = newSalaryVal - salary;
+    setTotalHistoricalSalary(prev => prev + difference);
+    setSalary(newSalaryVal);
     setIsEditingSalary(false);
   };
 
@@ -234,6 +248,7 @@ export default function Dashboard({ userId }: { userId: string }) {
     setShowCategoryForm(false);
   };
 
+  // Calculations
   const filteredExpenses = expenses.filter(exp => {
     if (timeFilter === 'all') return true;
     const expDate = new Date(exp.spent_on);
@@ -242,10 +257,14 @@ export default function Dashboard({ userId }: { userId: string }) {
   });
 
   const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
-  
   const remaining = salary - totalSpent;
   const percentUsed = salary > 0 ? ((totalSpent / salary) * 100).toFixed(1) : null;
 
+  // Total All-Time Calculations (Rollover)
+  const totalAllTimeSpent = expenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+  const totalSavings = totalHistoricalSalary - totalAllTimeSpent;
+
+  // Chart Data Preparation
   const expensesByCategory = filteredExpenses.reduce((acc, exp) => {
     const catName = categories.find(c => c.id === exp.category_id)?.name || 'Other';
     const amountVal = exp.amount_minor / 100;
@@ -273,7 +292,22 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   return (
     <div className="w-full max-w-2xl mt-8">
-      <div className="flex justify-end mb-4">
+      
+      {/* Total Savings Banner */}
+      <div className="bg-gradient-to-r from-emerald-900/40 to-zinc-900 p-6 rounded-lg border border-emerald-800/30 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-zinc-300 text-sm font-semibold uppercase tracking-wider mb-1">Total Savings</h2>
+          <p className="text-xs text-zinc-500">All-time unspent salary rollover</p>
+        </div>
+        <div className="text-right">
+          <span className={`text-3xl font-bold tracking-tight ${totalSavings >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+            PKR {totalSavings.toFixed(2)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex justify-between items-end mb-4">
+        <h3 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Current Month</h3>
         <div className="bg-zinc-900 p-1 rounded-lg border border-zinc-800 inline-flex">
           <button onClick={() => setTimeFilter('month')} className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'month' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}>This Month</button>
           <button onClick={() => setTimeFilter('all')} className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'all' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}>All Time</button>
