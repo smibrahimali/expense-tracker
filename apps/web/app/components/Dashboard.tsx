@@ -310,25 +310,25 @@ export default function Dashboard({ userId }: { userId: string }) {
               <button type="submit" className="bg-emerald-600 text-white px-2 py-1 rounded text-xs hover:bg-emerald-700 font-medium">Save</button>
             </form>
           ) : (
-            <span className="text-xl font-bold text-white truncate">PKR {salary.toFixed(2)}</span>
+            <span className="text-lg sm:text-xl font-bold text-white truncate">PKR {salary.toFixed(2)}</span>
           )}
         </div>
         
         <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Spent</span>
-          <span className="text-xl font-bold text-emerald-400 truncate">PKR {totalSpent.toFixed(2)}</span>
+          <span className="text-lg sm:text-xl font-bold text-emerald-400 truncate">PKR {totalSpent.toFixed(2)}</span>
         </div>
 
         <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Remaining</span>
-          <span className={`text-xl font-bold truncate ${remaining < 0 ? 'text-red-400' : 'text-white'}`}>
+          <span className={`text-lg sm:text-xl font-bold truncate ${remaining < 0 ? 'text-red-400' : 'text-white'}`}>
             PKR {remaining.toFixed(2)}
           </span>
         </div>
 
         <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Used</span>
-          <span className="text-xl font-bold text-white truncate">
+          <span className="text-lg sm:text-xl font-bold text-white truncate">
             {percentUsed !== null ? `${percentUsed}%` : <span className="text-zinc-500 text-sm">Set Salary</span>}
           </span>
         </div>
@@ -434,9 +434,13 @@ export default function Dashboard({ userId }: { userId: string }) {
                 ) : (
                   <>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-lg text-white">{categories.find(c => c.id === exp.category_id)?.name || 'Expense'}</p>
-                        <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded">{new Date(exp.spent_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-semibold text-base sm:text-lg text-white truncate">
+                          {categories.find(c => c.id === exp.category_id)?.name || 'Expense'}
+                        </p>
+                        <span className="text-[10px] sm:text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                          {new Date(exp.spent_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        </span>
                       </div>
                       {exp.note && <p className="text-sm text-zinc-400 mt-0.5">{exp.note}</p>}
                     </div>
