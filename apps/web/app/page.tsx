@@ -41,7 +41,9 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-zinc-400 font-medium tracking-wide animate-pulse">Loading session...</p>
+        <p className="text-white/90 font-medium tracking-wide animate-pulse">
+          Loading your workspace...
+        </p>
       </div>
     );
   }
@@ -49,23 +51,5 @@ export default function Home() {
   // If no user, the useEffect will redirect them. Render nothing in the meantime.
   if (!userId) return null;
 
-  return (
-    <main className="flex min-h-screen flex-col items-center p-4 md:p-8">
-      <div className="w-full max-w-2xl flex justify-between items-center mb-2 mt-4">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Expense Tracker</h1>
-        <button 
-          onClick={async () => {
-            await supabase.auth.signOut();
-            router.push('/login');
-          }} 
-          className="text-sm bg-zinc-800 border border-zinc-700 px-4 py-1.5 rounded-md text-zinc-300 hover:text-white hover:bg-zinc-700 transition-colors"
-        >
-          Sign Out
-        </button>
-      </div>
-      
-      {/* 3. Pass the REAL authenticated user ID to your dashboard */}
-      <Dashboard userId={userId} />
-    </main>
-  );
-}
+  return
+};

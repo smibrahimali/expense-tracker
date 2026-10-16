@@ -1,23 +1,29 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '../../utils/client';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, CartesianGrid } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  
+
   // Salary State
   const [salary, setSalary] = useState<number>(0);
   const [totalHistoricalSalary, setTotalHistoricalSalary] = useState<number>(0);
   const [isEditingSalary, setIsEditingSalary] = useState(false);
   const [salaryInput, setSalaryInput] = useState('');
-  
+
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
-  
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategoryId, setEditCategoryId] = useState('');
@@ -29,11 +35,27 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
   const [formError, setFormError] = useState<string | null>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   // Helper to format numbers with commas
   const formatMoney = (val: number) => {
     return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Helper to split whole numbers and decimals like the reference UI ($1,842.56)
+  const splitMoney = (val: number) => {
+    const abs = Math.abs(val);
+    const formatted = abs.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const [whole, dec] = formatted.split('.');
+    return {
+      sign: val < 0 ? '-' : '',
+      whole: whole || '0',
+      dec: dec || '00',
+    };
   };
 
   const todayLocal = () => {
@@ -45,17 +67,21 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   useEffect(() => {
     // Fetch Categories
-    supabase.from('categories').select('*').eq('user_id', userId).then(({ data }) => {
-      if (data && data.length > 0) {
-        setCategories(data);
-        setCategoryId(data[0].id);
-      }
-    });
+    supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', userId)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setCategories(data);
+          setCategoryId(data[0].id);
+        }
+      });
 
     // Fetch All Historical Salaries
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    
+
     supabase
       .from('monthly_salaries')
       .select('month, amount_minor')
@@ -64,7 +90,7 @@ export default function Dashboard({ userId }: { userId: string }) {
         if (data) {
           let currentSal = 0;
           let totalSal = 0;
-          data.forEach(item => {
+          data.forEach((item) => {
             const val = item.amount_minor / 100;
             totalSal += val;
             if (item.month === currentMonthStr) {
@@ -137,7 +163,7 @@ export default function Dashboard({ userId }: { userId: string }) {
 
     const newSalaryVal = amountMinor / 100;
     const difference = newSalaryVal - salary;
-    setTotalHistoricalSalary(prev => prev + difference);
+    setTotalHistoricalSalary((prev) => prev + difference);
     setSalary(newSalaryVal);
     setIsEditingSalary(false);
   };
@@ -159,13 +185,15 @@ export default function Dashboard({ userId }: { userId: string }) {
 
     const { data: newExpense, error } = await supabase
       .from('expenses')
-      .insert([{
-        user_id: userId,
-        category_id: categoryId,
-        amount_minor: amountMinor,
-        spent_on: todayLocal(),
-        note: note || null,
-      }])
+      .insert([
+        {
+          user_id: userId,
+          category_id: categoryId,
+          amount_minor: amountMinor,
+          spent_on: todayLocal(),
+          note: note || null,
+        },
+      ])
       .select()
       .single();
 
@@ -182,7 +210,7 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   const handleDeleteExpense = async (id: string) => {
     const previous = expenses;
-    setExpenses(expenses.filter(exp => exp.id !== id));
+    setExpenses(expenses.filter((exp) => exp.id !== id));
     const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', userId);
     if (error) {
       console.error('Failed to delete expense:', error);
@@ -223,7 +251,7 @@ export default function Dashboard({ userId }: { userId: string }) {
       return;
     }
 
-    setExpenses(expenses.map(exp => (exp.id === id ? { ...exp, ...updatedExpense } : exp)));
+    setExpenses(expenses.map((exp) => (exp.id === id ? { ...exp, ...updatedExpense } : exp)));
     setEditingId(null);
   };
 
@@ -253,7 +281,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   };
 
   // Calculations
-  const filteredExpenses = expenses.filter(exp => {
+  const filteredExpenses = expenses.filter((exp) => {
     if (timeFilter === 'all') return true;
     const expDate = new Date(exp.spent_on);
     const today = new Date();
@@ -270,14 +298,15 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   // Chart Data Preparation
   const expensesByCategory = filteredExpenses.reduce((acc, exp) => {
-    const catName = categories.find(c => c.id === exp.category_id)?.name || 'Other';
+    const catName = categories.find((c) => c.id === exp.category_id)?.name || 'Other';
     const amountVal = exp.amount_minor / 100;
     acc[catName] = (acc[catName] || 0) + amountVal;
     return acc;
   }, {} as Record<string, number>);
 
-  const chartData = Object.entries(expensesByCategory).map(([name, value]) => ({ name, value }));
-  const COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa', '#2dd4bf', '#a3e635'];
+  const chartData = Object.entries(expensesByCategory)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
   // Calculate 6-Month Trend Data
   const trendData = [];
@@ -285,233 +314,563 @@ export default function Dashboard({ userId }: { userId: string }) {
   for (let i = 5; i >= 0; i--) {
     const targetMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const monthLabel = targetMonth.toLocaleDateString('en-GB', { month: 'short' });
-    
-    const monthTotal = expenses.filter(exp => {
-      const expDate = new Date(exp.spent_on);
-      return expDate.getMonth() === targetMonth.getMonth() && expDate.getFullYear() === targetMonth.getFullYear();
-    }).reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+    const fullMonthLabel = targetMonth.toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric',
+    });
 
-    trendData.push({ month: monthLabel, amount: monthTotal });
+    const monthTotal =
+      expenses
+        .filter((exp) => {
+          const expDate = new Date(exp.spent_on);
+          return (
+            expDate.getMonth() === targetMonth.getMonth() &&
+            expDate.getFullYear() === targetMonth.getFullYear()
+          );
+        })
+        .reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+
+    trendData.push({ month: monthLabel, fullMonthLabel, amount: monthTotal });
   }
 
+  const spentSplit = splitMoney(totalSpent);
+  const remainingSplit = splitMoney(remaining);
+  const savingsSplit = splitMoney(totalSavings);
+
   return (
-    <div className="w-full max-w-2xl mt-8">
+    <div className="w-full max-w-6xl mx-auto my-4 sm:my-8 bg-[#FAF9F6] text-zinc-900 rounded-[36px] p-5 sm:p-10 shadow-2xl border border-white/80">
       
-      {/* Total Savings Banner */}
-      <div className="bg-gradient-to-r from-emerald-900/40 to-zinc-900 p-6 rounded-lg border border-emerald-800/30 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-zinc-300 text-sm font-semibold uppercase tracking-wider mb-1">Total Savings</h2>
-          <p className="text-xs text-zinc-500">All-time unspent salary rollover</p>
-        </div>
-        <div className="text-right">
-          <span className={`text-3xl font-bold tracking-tight ${totalSavings >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-            PKR {formatMoney(totalSavings)}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex justify-between items-end mb-4">
-        <h3 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Current Month</h3>
-        <div className="bg-zinc-900 p-1 rounded-lg border border-zinc-800 inline-flex">
-          <button onClick={() => setTimeFilter('month')} className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'month' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}>This Month</button>
-          <button onClick={() => setTimeFilter('all')} className={`px-4 py-1.5 text-sm rounded-md transition-colors ${timeFilter === 'all' ? 'bg-zinc-800 text-white font-medium' : 'text-zinc-400 hover:text-white'}`}>All Time</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Salary</span>
-            {!isEditingSalary && (
-              <button 
-                onClick={() => { 
-                  setSalaryInput(salary > 0 ? salary.toString() : ''); 
-                  setIsEditingSalary(true); 
-                }} 
-                className="text-xs text-zinc-500 hover:text-emerald-400 transition-colors"
-              >
-                Edit
-              </button>
-            )}
+      {/* Top Pill Navigation Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-zinc-950 text-white flex items-center justify-center font-black text-lg tracking-tighter">
+            A
           </div>
-          {isEditingSalary ? (
-            <form onSubmit={handleSaveSalary} className="flex gap-2 items-center">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={salaryInput}
-                onChange={(e) => setSalaryInput(e.target.value)}
-                className="w-full p-1 bg-zinc-800 text-white rounded text-sm outline-none focus:border-emerald-500 border border-transparent"
-                placeholder="Amount"
-                autoFocus
-              />
-              <button type="submit" className="bg-emerald-600 text-white px-2 py-1 rounded text-xs hover:bg-emerald-700 font-medium">Save</button>
-            </form>
-          ) : (
-            <span className="text-lg sm:text-xl font-bold text-white truncate" title={`PKR ${formatMoney(salary)}`}>
-              PKR {formatMoney(salary)}
-            </span>
-          )}
-        </div>
-        
-        <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
-          <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Spent</span>
-          <span className="text-lg sm:text-xl font-bold text-emerald-400 truncate" title={`PKR ${formatMoney(totalSpent)}`}>
-            PKR {formatMoney(totalSpent)}
-          </span>
+          <span className="font-bold text-base tracking-tight text-zinc-900">ExpenseFlow</span>
         </div>
 
-        <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
-          <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Remaining</span>
-          <span className={`text-lg sm:text-xl font-bold truncate ${remaining < 0 ? 'text-red-400' : 'text-white'}`} title={`PKR ${formatMoney(remaining)}`}>
-            PKR {formatMoney(remaining)}
+        <div className="bg-white p-1.5 rounded-full shadow-xs border border-zinc-200/70 inline-flex items-center gap-1">
+          <span className="bg-zinc-950 text-white px-5 py-2 rounded-full text-xs sm:text-sm font-medium">
+            Dashboard
           </span>
+          <Link
+            href="/transactions"
+            className="text-zinc-600 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors"
+          >
+            Transactions
+          </Link>
+          <Link
+            href="/settings"
+            className="text-zinc-600 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors"
+          >
+            Categories
+          </Link>
         </div>
 
-        <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-800 flex flex-col justify-center min-h-[88px]">
-          <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider mb-1">Used</span>
-          <span className="text-lg sm:text-xl font-bold text-white truncate">
-            {percentUsed !== null ? `${percentUsed}%` : <span className="text-zinc-500 text-sm">Set Salary</span>}
-          </span>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/settings"
+            className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-700 hover:text-zinc-950 shadow-2xs transition-colors"
+            title="Settings"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </Link>
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-bold text-xs flex items-center justify-center shadow-sm">
+            IA
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        {chartData.length > 0 && (
-          <div className="p-6 bg-zinc-900 rounded-lg border border-zinc-800 h-72">
-            <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4 text-center">Breakdown</h2>
+      {/* Welcome Title & Create Report Button */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+        <div>
+          <p className="text-zinc-500 text-xs sm:text-sm mb-1">
+            Take control of your finances with real-time insights
+          </p>
+          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-zinc-950">
+            Welcome Back!
+          </h1>
+        </div>
+
+        <Link
+          href="/transactions"
+          className="inline-flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white text-xs sm:text-sm font-medium px-6 py-3.5 rounded-full transition-colors shadow-sm"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Create Report
+        </Link>
+      </div>
+
+      {/* Top Hero Row: Two Signature Crimson-to-Orange Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+        
+        {/* Left Hero Card: Overview + 6-Month Chart */}
+        <div className="lg:col-span-7 rounded-[28px] p-6 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-lg flex flex-col justify-between min-h-[370px]">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-white/90 text-sm sm:text-base font-medium">Overview</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTimeFilter(timeFilter === 'month' ? 'all' : 'month')}
+                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/15 px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors"
+                >
+                  <span>{timeFilter === 'month' ? 'This Month' : 'All Time'}</span>
+                  <span className="text-[10px]">▼</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
+              <span>PKR {spentSplit.whole}</span>
+              <span className="text-white/50">.{spentSplit.dec}</span>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3.5 py-1 text-xs text-white/95">
+              <span>↗ {percentUsed !== null ? `${percentUsed}%` : '0.0%'} this month</span>
+            </div>
+          </div>
+
+          <div className="h-44 mt-6 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={5} dataKey="value" stroke="none">
-                  {chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(value: any) => `PKR ${formatMoney(Number(value))}`} contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }} itemStyle={{ color: '#fff' }} />
-                <Legend wrapperStyle={{ paddingTop: '10px' }} />
-              </PieChart>
+              <BarChart data={trendData} barCategoryGap="20%">
+                <XAxis
+                  dataKey="month"
+                  stroke="rgba(255,255,255,0.75)"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  cursor={{ fill: 'rgba(255,255,255,0.12)', radius: 8 }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const val = Number(payload[0].value || 0);
+                      const p = splitMoney(val);
+                      return (
+                        <div className="bg-white text-zinc-900 px-4 py-3 rounded-2xl shadow-xl border border-zinc-100">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-bold text-base">
+                              PKR {p.whole}
+                              <span className="text-zinc-400">.{p.dec}</span>
+                            </span>
+                            <span className="bg-zinc-950 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                              ↗ {percentUsed || '0'}%
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500">
+                            for {payload[0].payload.fullMonthLabel}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar
+                  dataKey="amount"
+                  fill="rgba(255, 255, 255, 0.85)"
+                  radius={[6, 6, 6, 6]}
+                />
+              </BarChart>
             </ResponsiveContainer>
           </div>
-        )}
+        </div>
 
-        <div className="p-6 bg-zinc-900 rounded-lg border border-zinc-800 h-72">
-          <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4 text-center">6-Month Trend</h2>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-              <XAxis dataKey="month" stroke="#a1a1aa" fontSize={12} tickLine={false} axisLine={false} />
-              <Tooltip 
-                formatter={(value: any) => `PKR ${formatMoney(Number(value))}`} 
-                contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', color: '#fff', borderRadius: '8px' }} 
-                itemStyle={{ color: '#fff' }}
-                cursor={{ fill: '#27272a' }}
-              />
-              <Bar dataKey="amount" fill="#10B981" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Right Hero Card: Balance, Salary & Stacked Savings Card */}
+        <div className="lg:col-span-5 rounded-[28px] p-6 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-lg flex flex-col justify-between min-h-[370px]">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-white/90 text-sm sm:text-base font-medium">Balance & Salary</span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setSalaryInput(salary > 0 ? salary.toString() : '');
+                    setIsEditingSalary(!isEditingSalary);
+                  }}
+                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/15 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors"
+                >
+                  {isEditingSalary ? 'Cancel' : 'Edit Salary'}
+                </button>
+                <button
+                  onClick={() => setShowCategoryForm(!showCategoryForm)}
+                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/15 flex items-center justify-center text-sm font-bold transition-colors"
+                  title="Add New Category"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {isEditingSalary ? (
+              <form onSubmit={handleSaveSalary} className="flex gap-2 items-center my-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={salaryInput}
+                  onChange={(e) => setSalaryInput(e.target.value)}
+                  className="w-full px-4 py-2 bg-black/30 backdrop-blur-md text-white placeholder-white/60 rounded-full text-sm outline-none border border-white/30"
+                  placeholder="Monthly Salary (PKR)"
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="bg-white text-zinc-950 px-4 py-2 rounded-full text-xs font-bold hover:bg-zinc-100 transition-colors shrink-0"
+                >
+                  Save
+                </button>
+              </form>
+            ) : (
+              <div className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
+                <span>
+                  {remainingSplit.sign}PKR {remainingSplit.whole}
+                </span>
+                <span className="text-white/50">.{remainingSplit.dec}</span>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
+              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3 py-1 text-xs">
+                <span>↗ {percentUsed !== null ? `${percentUsed}% used` : 'Set Salary'}</span>
+              </div>
+              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3 py-1 text-xs">
+                <span>Salary: PKR {formatMoney(salary)}</span>
+              </div>
+            </div>
+
+            {/* White Pill Action Buttons (Deposit / Withdraw Style) */}
+            <div className="flex items-center gap-2.5 mb-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setSalaryInput(salary > 0 ? salary.toString() : '');
+                  setIsEditingSalary(true);
+                }}
+                className="flex-1 bg-white hover:bg-zinc-50 text-zinc-950 font-semibold text-xs sm:text-sm py-3 px-4 rounded-full shadow-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+              >
+                <span>↗ Salary</span>
+              </button>
+              <Link
+                href="/transactions"
+                className="w-11 h-11 rounded-full bg-white hover:bg-zinc-50 text-zinc-950 flex items-center justify-center shadow-sm shrink-0 font-bold transition-transform active:scale-95"
+                title="All Transactions"
+              >
+                ⇅
+              </Link>
+              <button
+                type="button"
+                onClick={() => amountInputRef.current?.focus()}
+                className="flex-1 bg-white hover:bg-zinc-50 text-zinc-950 font-semibold text-xs sm:text-sm py-3 px-4 rounded-full shadow-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95"
+              >
+                <span>↘ Expense</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Stacked Frosted Glass Card for Total Rollover Savings */}
+          <div className="relative pt-2 mt-auto">
+            <div className="mx-6 h-2.5 rounded-t-2xl bg-white/15 backdrop-blur-md border-t border-x border-white/20" />
+            <div className="mx-3 h-2.5 rounded-t-2xl bg-white/25 backdrop-blur-md border-t border-x border-white/25" />
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/30 backdrop-blur-md border border-white/35 flex items-center justify-between shadow-inner">
+              <div>
+                <p className="text-[11px] font-medium text-white/85 tracking-wider">
+                  •••• SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
+                </p>
+                <p className="text-base sm:text-lg font-bold text-white mt-0.5">
+                  {savingsSplit.sign}PKR {savingsSplit.whole}.{savingsSplit.dec}
+                </p>
+              </div>
+              <span className="text-base sm:text-lg font-black tracking-widest italic text-white/90">
+                VISA
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Category Management UI */}
-      <div className="flex justify-between items-end mb-2 px-1 mt-6">
-        <h3 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Log Expense</h3>
-        <div className="flex gap-4">
-          <Link href="/settings" className="text-xs text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-            Manage
-          </Link>
-          <button 
-            onClick={() => setShowCategoryForm(!showCategoryForm)}
-            className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
-          >
-            {showCategoryForm ? 'Close' : '+ New Category'}
-          </button>
-        </div>
-      </div>
-
+      {/* Collapsible New Category Form */}
       {showCategoryForm && (
-        <form onSubmit={handleAddCategory} className="flex gap-2 mb-4 bg-zinc-900 p-3 rounded-lg border border-zinc-800">
-          <input 
-            type="text" 
-            value={newCategoryName} 
-            onChange={(e) => setNewCategoryName(e.target.value)} 
-            placeholder="Category Name (e.g. Padel Match)" 
-            required 
-            className="p-2 rounded bg-zinc-800 text-white w-full text-sm outline-none focus:border-emerald-500 border border-transparent" 
+        <form
+          onSubmit={handleAddCategory}
+          className="flex gap-2 mb-6 bg-white p-3.5 rounded-2xl border border-zinc-200 shadow-xs"
+        >
+          <input
+            type="text"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="Category Name (e.g. Padel Match)"
+            required
+            className="px-4 py-2.5 rounded-xl bg-zinc-100 text-zinc-900 w-full text-sm outline-none focus:ring-2 focus:ring-orange-500/30"
           />
-          <button type="submit" className="bg-zinc-700 text-white px-4 py-2 rounded font-medium hover:bg-zinc-600 text-sm whitespace-nowrap transition-colors">
+          <button
+            type="submit"
+            className="bg-zinc-950 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-zinc-800 text-sm whitespace-nowrap transition-colors"
+          >
             Create
           </button>
         </form>
       )}
 
-    <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-        <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" required className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
-        <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full outline-none">
-          {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-        </select>
-        <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="p-2 rounded bg-zinc-800 text-white w-full outline-none" />
-        <button type="submit" className="bg-emerald-600 text-white px-6 py-2 rounded font-medium hover:bg-emerald-700 w-full transition-colors">Add Expense</button>
-      </form>
-      {formError && (
-        <p className="text-red-400 text-sm -mt-6 mb-6">{formError}</p>
-      )}
-
-      <div className="space-y-4 mb-8">
-        <div className="flex justify-between items-end px-1">
-          <h3 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Latest Transactions</h3>
-          <Link href="/transactions" className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors whitespace-nowrap">
-            View all
-          </Link>
+      {/* Quick Add Expense Bar */}
+      <div className="bg-white p-4 sm:p-5 rounded-[24px] border border-zinc-200/70 shadow-2xs mb-6">
+        <div className="flex justify-between items-center mb-3 px-1">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Log New Expense
+          </h3>
+          <div className="flex gap-4">
+            <Link
+              href="/settings"
+              className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors font-medium"
+            >
+              Manage Categories
+            </Link>
+            <button
+              type="button"
+              onClick={() => setShowCategoryForm(!showCategoryForm)}
+              className="text-xs text-[#C83713] hover:text-[#9E1C0C] font-semibold transition-colors"
+            >
+              {showCategoryForm ? 'Close' : '+ New Category'}
+            </button>
+          </div>
         </div>
+
+        <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input
+            ref={amountInputRef}
+            type="number"
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Amount (PKR)"
+            required
+            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500"
+          />
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500"
+          >
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Note (optional)"
+            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500"
+          />
+          <button
+            type="submit"
+            className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-semibold text-sm w-full transition-colors cursor-pointer"
+          >
+            Add Expense
+          </button>
+        </form>
+        {formError && <p className="text-red-600 text-xs mt-2 px-1">{formError}</p>}
+      </div>
+
+      {/* Bottom Row: Recent Transactions (Left) + Category Bento Grid & Glass Bubbles (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
-          <>
-            {filteredExpenses.slice(0, 5).map(exp => (
-              <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
-                {editingId === exp.id ? (
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center w-full">
-                    <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm" />
-                    <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm">
-                      {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                    </select>
-                    <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2 rounded bg-zinc-800 text-white w-full text-sm" />
-                    <div className="flex gap-2">
-                      <button onClick={() => handleSaveEdit(exp.id)} className="bg-emerald-600 text-white px-3 py-1.5 rounded text-sm w-full">Save</button>
-                      <button onClick={() => setEditingId(null)} className="bg-zinc-700 text-white px-3 py-1.5 rounded text-sm w-full">Cancel</button>
+        {/* Left: Recent Transactions */}
+        <div className="lg:col-span-7 bg-[#F3F3F5] p-6 rounded-[28px]">
+          <div className="flex justify-between items-center mb-5">
+            <h3 className="text-base font-semibold text-zinc-900">Recent Transactions</h3>
+            <Link
+              href="/transactions"
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-950 transition-colors"
+            >
+              View All
+            </Link>
+          </div>
+
+          {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
+            <div className="space-y-3">
+              {filteredExpenses.slice(0, 5).map((exp) => {
+                const cat = categories.find((c) => c.id === exp.category_id);
+                const catName = cat?.name || 'Expense';
+
+                return (
+                  <div
+                    key={exp.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl shadow-2xs border border-zinc-200/40"
+                  >
+                    {editingId === exp.id ? (
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center w-full">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                        />
+                        <select
+                          value={editCategoryId}
+                          onChange={(e) => setEditCategoryId(e.target.value)}
+                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                        >
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={editNote}
+                          onChange={(e) => setEditNote(e.target.value)}
+                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                        />
+                        <div className="flex gap-1.5">
+                          <button
+                            onClick={() => handleSaveEdit(exp.id)}
+                            className="bg-zinc-950 text-white px-3 py-1.5 rounded-xl text-xs w-full"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="bg-zinc-200 text-zinc-800 px-3 py-1.5 rounded-xl text-xs w-full"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-10 h-10 rounded-full bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#C83713] font-bold text-xs shrink-0">
+                            {catName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-zinc-900 truncate">
+                              {exp.note || catName}
+                            </p>
+                            <p className="text-xs text-zinc-400">
+                              {new Date(exp.spent_on).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-4">
+                          <span className="px-3 py-1 rounded-full text-[11px] font-medium bg-orange-50 text-orange-700">
+                            {catName}
+                          </span>
+
+                          <p className="font-bold text-sm sm:text-base text-[#D92D20] whitespace-nowrap">
+                            -PKR {formatMoney(exp.amount_minor / 100)}
+                          </p>
+
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => handleEditClick(exp)}
+                              className="text-zinc-400 hover:text-zinc-900 transition-colors p-1.5"
+                              title="Edit expense"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExpense(exp.id)}
+                              className="text-zinc-400 hover:text-red-600 transition-colors p-1.5"
+                              title="Delete expense"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-zinc-400 text-center py-8 text-sm">
+              No expenses found for this period.
+            </p>
+          )}
+        </div>
+
+        {/* Right: 2x2 Category Bento Cards + Frosted Glass Bubble Chart */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="grid grid-cols-2 gap-4">
+            {chartData.length > 0 ? (
+              chartData.slice(0, 4).map((item) => {
+                const p = splitMoney(item.value);
+                const pct =
+                  totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
+
+                return (
+                  <div
+                    key={item.name}
+                    className="bg-white p-5 rounded-[24px] shadow-2xs border border-zinc-200/50 flex flex-col justify-between min-h-[140px]"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-zinc-700 truncate">
+                        {item.name}
+                      </span>
+                      <span className="text-zinc-400 text-xs">↗</span>
+                    </div>
+
+                    <div className="mt-4">
+                      <p className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 truncate">
+                        PKR {p.whole}
+                        <span className="text-zinc-400 font-semibold">.{p.dec}</span>
+                      </p>
+                      <p className="text-[11px] font-medium text-[#C83713] mt-1">
+                        ↗ {pct}% of spending
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <p className="font-semibold text-base sm:text-lg text-white truncate">
-                          {categories.find(c => c.id === exp.category_id)?.name || 'Expense'}
-                        </p>
-                        <span className="text-[10px] sm:text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
-                          {new Date(exp.spent_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        </span>
-                      </div>
-                      {exp.note && <p className="text-sm text-zinc-400 mt-0.5">{exp.note}</p>}
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <p className="font-bold text-lg text-emerald-400">PKR {formatMoney(exp.amount_minor / 100)}</p>
-                      <div className="flex gap-1">
-                        <button onClick={() => handleEditClick(exp)} className="text-zinc-600 hover:text-blue-500 transition-colors p-2" title="Edit expense">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                        </button>
-                        <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-600 hover:text-red-500 transition-colors p-2" title="Delete expense">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                );
+              })
+            ) : (
+              <div className="col-span-2 bg-white p-6 rounded-[24px] text-center text-zinc-400 text-sm">
+                Log expenses to see category cards
               </div>
-            ))}
-          </>
-        ) : (
-          <p className="text-zinc-500 text-center py-4">No expenses found for this period.</p>
-        )}
+            )}
+          </div>
+
+          {/* Warm Orange Frosted Glass Category Bubbles (From Reference Image 2) */}
+          {chartData.length > 0 && (
+            <div className="rounded-[28px] p-6 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-md">
+              <p className="text-xs uppercase tracking-wider text-white/80 font-semibold mb-4">
+                Category Share
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {chartData.slice(0, 4).map((item, idx) => {
+                  const pct =
+                    totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
+                  const sizes = [
+                    'w-28 h-28',
+                    'w-24 h-24',
+                    'w-24 h-24',
+                    'w-20 h-20',
+                  ];
+                  return (
+                    <div
+                      key={item.name}
+                      className={`${sizes[idx] || 'w-24 h-24'} rounded-full bg-white/20 backdrop-blur-md border border-white/35 flex flex-col items-center justify-center text-center p-2 shadow-inner`}
+                    >
+                      <span className="text-[11px] font-medium text-white/90 line-clamp-1 px-1">
+                        {item.name}
+                      </span>
+                      <span className="text-sm font-bold text-white mt-0.5">{pct}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

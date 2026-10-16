@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000000;
-  --foreground: #f4f4f5;
-  color-scheme: dark;
+  --background: #c83e14;
+  --foreground: #18181b;
 }
 
 @theme inline {
@@ -15,31 +14,19 @@
 
 html,
 body {
-  background-color: #000000;
-  color: var(--foreground);
+  background: linear-gradient(135deg, #5a0b05 0%, #b82b10 45%, #f18838 100%) !important;
+  background-attachment: fixed !important;
+  color: #18181b;
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
 }
 
-/* Custom Dark Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
+/* Force any outer wrapper in page.tsx to let the warm backdrop shine through */
+body > div,
+body > main {
+  background-color: transparent !important;
 }
 
-::-webkit-scrollbar-track {
-  background: #000000;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
-}
-
-/* Clean number inputs without arrows */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
