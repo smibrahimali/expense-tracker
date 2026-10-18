@@ -305,7 +305,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   }, {} as Record<string, number>);
 
   const chartData = Object.entries(expensesByCategory)
-    .map(([name, value]) => ({ name, value }))
+    .map(([name, value]) => ({ name, value: Number(value) }))
     .sort((a, b) => b.value - a.value);
 
   // Calculate 6-Month Trend Data
@@ -338,7 +338,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   const savingsSplit = splitMoney(totalSavings);
 
   return (
-    <div className="w-full max-w-6xl mx-auto my-4 sm:my-8 bg-[#FAF9F6] text-zinc-900 rounded-[36px] p-5 sm:p-10 shadow-2xl border border-white/80">
+    <div className="w-full max-w-6xl mx-auto my-4 sm:my-8 backdrop-blur-3xl text-zinc-900 rounded-[36px] p-5 sm:p-10 shadow-2xl border border-white/80" style={{ backgroundColor: 'rgba(250, 249, 246, 0.95)' }}>
       
       {/* Top Pill Navigation Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
@@ -355,13 +355,13 @@ export default function Dashboard({ userId }: { userId: string }) {
           </span>
           <Link
             href="/transactions"
-            className="text-zinc-600 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors"
+            className="text-zinc-700 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors"
           >
             Transactions
           </Link>
           <Link
             href="/settings"
-            className="text-zinc-600 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors"
+            className="text-zinc-700 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors"
           >
             Categories
           </Link>
@@ -384,7 +384,7 @@ export default function Dashboard({ userId }: { userId: string }) {
       {/* Welcome Title & Create Report Button */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
         <div>
-          <p className="text-zinc-500 text-xs sm:text-sm mb-1">
+          <p className="text-zinc-700 text-xs sm:text-sm mb-1 font-medium">
             Take control of your finances with real-time insights
           </p>
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-zinc-950">
@@ -422,7 +422,7 @@ export default function Dashboard({ userId }: { userId: string }) {
 
             <div className="text-3xl sm:text-5xl font-bold tracking-tight mb-3">
               <span>PKR {spentSplit.whole}</span>
-              <span className="text-white/50">.{spentSplit.dec}</span>
+              <span className="text-white/70">.{spentSplit.dec}</span>
             </div>
 
             <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3.5 py-1 text-xs text-white/95">
@@ -435,7 +435,7 @@ export default function Dashboard({ userId }: { userId: string }) {
               <BarChart data={trendData} barCategoryGap="20%">
                 <XAxis
                   dataKey="month"
-                  stroke="rgba(255,255,255,0.75)"
+                  stroke="rgba(255,255,255,0.85)"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
@@ -451,7 +451,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="font-bold text-base">
                               PKR {p.whole}
-                              <span className="text-zinc-400">.{p.dec}</span>
+                              <span className="text-zinc-500">.{p.dec}</span>
                             </span>
                             <span className="bg-zinc-950 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
                               ↗ {percentUsed || '0'}%
@@ -525,7 +525,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                 <span>
                   {remainingSplit.sign}PKR {remainingSplit.whole}
                 </span>
-                <span className="text-white/50">.{remainingSplit.dec}</span>
+                <span className="text-white/70">.{remainingSplit.dec}</span>
               </div>
             )}
 
@@ -573,7 +573,7 @@ export default function Dashboard({ userId }: { userId: string }) {
             <div className="mx-3 h-2.5 rounded-t-2xl bg-white/25 backdrop-blur-md border-t border-x border-white/25" />
             <div className="p-4 sm:p-5 rounded-2xl bg-white/30 backdrop-blur-md border border-white/35 flex items-center justify-between shadow-inner">
               <div>
-                <p className="text-[11px] font-medium text-white/85 tracking-wider">
+                <p className="text-[11px] font-medium text-white/90 tracking-wider">
                   •••• SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
                 </p>
                 <p className="text-base sm:text-lg font-bold text-white mt-0.5">
@@ -614,13 +614,13 @@ export default function Dashboard({ userId }: { userId: string }) {
       {/* Quick Add Expense Bar */}
       <div className="bg-white p-4 sm:p-5 rounded-[24px] border border-zinc-200/70 shadow-2xs mb-6">
         <div className="flex justify-between items-center mb-3 px-1">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
             Log New Expense
           </h3>
           <div className="flex gap-4">
             <Link
               href="/settings"
-              className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors font-medium"
+              className="text-xs text-zinc-600 hover:text-zinc-900 transition-colors font-medium"
             >
               Manage Categories
             </Link>
@@ -682,7 +682,7 @@ export default function Dashboard({ userId }: { userId: string }) {
             <h3 className="text-base font-semibold text-zinc-900">Recent Transactions</h3>
             <Link
               href="/transactions"
-              className="text-xs font-medium text-zinc-500 hover:text-zinc-950 transition-colors"
+              className="text-xs font-medium text-zinc-700 hover:text-zinc-950 transition-colors"
             >
               View All
             </Link>
@@ -750,7 +750,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                             <p className="font-semibold text-sm text-zinc-900 truncate">
                               {exp.note || catName}
                             </p>
-                            <p className="text-xs text-zinc-400">
+                            <p className="text-xs text-zinc-600">
                               {new Date(exp.spent_on).toLocaleDateString('en-GB', {
                                 day: 'numeric',
                                 month: 'short',
@@ -772,14 +772,14 @@ export default function Dashboard({ userId }: { userId: string }) {
                           <div className="flex gap-1">
                             <button
                               onClick={() => handleEditClick(exp)}
-                              className="text-zinc-400 hover:text-zinc-900 transition-colors p-1.5"
+                              className="text-zinc-500 hover:text-zinc-900 transition-colors p-1.5"
                               title="Edit expense"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             </button>
                             <button
                               onClick={() => handleDeleteExpense(exp.id)}
-                              className="text-zinc-400 hover:text-red-600 transition-colors p-1.5"
+                              className="text-zinc-500 hover:text-red-600 transition-colors p-1.5"
                               title="Delete expense"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -793,7 +793,7 @@ export default function Dashboard({ userId }: { userId: string }) {
               })}
             </div>
           ) : (
-            <p className="text-zinc-400 text-center py-8 text-sm">
+            <p className="text-zinc-600 text-center py-8 text-sm">
               No expenses found for this period.
             </p>
           )}
@@ -817,13 +817,13 @@ export default function Dashboard({ userId }: { userId: string }) {
                       <span className="text-sm font-medium text-zinc-700 truncate">
                         {item.name}
                       </span>
-                      <span className="text-zinc-400 text-xs">↗</span>
+                      <span className="text-zinc-500 text-xs">↗</span>
                     </div>
 
                     <div className="mt-4">
                       <p className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 truncate">
                         PKR {p.whole}
-                        <span className="text-zinc-400 font-semibold">.{p.dec}</span>
+                        <span className="text-zinc-500 font-semibold">.{p.dec}</span>
                       </p>
                       <p className="text-[11px] font-medium text-[#C83713] mt-1">
                         ↗ {pct}% of spending
@@ -833,7 +833,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                 );
               })
             ) : (
-              <div className="col-span-2 bg-white p-6 rounded-[24px] text-center text-zinc-400 text-sm">
+              <div className="col-span-2 bg-white p-6 rounded-[24px] text-center text-zinc-600 text-sm">
                 Log expenses to see category cards
               </div>
             )}

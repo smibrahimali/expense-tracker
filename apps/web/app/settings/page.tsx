@@ -105,88 +105,134 @@ export default function SettingsPage() {
   };
 
   if (!userId) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <p className="text-zinc-900 font-medium tracking-wide animate-pulse">Loading...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 sm:p-8 font-sans">
+    <div className="min-h-screen p-4 sm:p-8 font-sans text-zinc-900">
       <div className="max-w-2xl mx-auto mt-8">
-        
-        {/* Header & Navigation */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/" className="p-2 bg-zinc-900 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Manage Categories</h1>
-        </div>
-
-        {error && <div className="mb-4 p-3 bg-red-900/50 border border-red-800 text-red-200 rounded-lg text-sm">{error}</div>}
-        {success && <div className="mb-4 p-3 bg-emerald-900/50 border border-emerald-800 text-emerald-200 rounded-lg text-sm">{success}</div>}
-
-        <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden mb-12">
-          <div className="p-4 border-b border-zinc-800">
-            <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Your Categories</h2>
+        <div className="backdrop-blur-2xl bg-white/40 border border-white/50 shadow-2xl rounded-3xl p-6 md:p-8">
+          {/* Header & Navigation */}
+          <div className="flex items-center gap-4 mb-8">
+            <Link
+              href="/"
+              className="p-2 bg-white/70 rounded-lg border border-white/80 text-zinc-600 hover:text-zinc-900 transition-colors shadow-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            </Link>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Manage Categories</h1>
           </div>
-          
-          <div className="divide-y divide-zinc-800">
-            {categories.map(cat => (
-              <div key={cat.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                {editingId === cat.id ? (
-                  <div className="flex-1 flex flex-col sm:flex-row gap-3 w-full">
-                    <input 
-                      type="text" 
-                      value={editName} 
-                      onChange={(e) => setEditName(e.target.value)} 
-                      className="p-2 rounded bg-zinc-800 text-white flex-1 text-sm outline-none border border-transparent focus:border-emerald-500"
-                    />
-                    <select 
-                      value={editColor} 
-                      onChange={(e) => setEditColor(e.target.value)}
-                      className="p-2 rounded bg-zinc-800 text-white text-sm outline-none border border-transparent focus:border-emerald-500 font-medium"
-                      style={{ color: editColor }}
-                    >
-                      {COLORS.map(c => <option key={c} value={c} style={{ color: c }}>{c}</option>)}
-                    </select>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleSaveEdit(cat.id)} className="bg-emerald-600 text-white px-3 py-2 rounded text-sm whitespace-nowrap hover:bg-emerald-700 font-medium transition-colors">Save</button>
-                      <button onClick={() => { setEditingId(null); setError(null); }} className="bg-zinc-700 text-white px-3 py-2 rounded text-sm whitespace-nowrap hover:bg-zinc-600 font-medium transition-colors">Cancel</button>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-sm">
+              {success}
+            </div>
+          )}
+
+          <div className="bg-white/60 rounded-xl p-4 text-zinc-900 mb-12">
+            <h2 className="text-zinc-500 text-sm font-medium uppercase tracking-wider mb-4">
+              Your Categories
+            </h2>
+
+            <div className="flex flex-col gap-3">
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className="bg-white/60 rounded-xl p-4 text-zinc-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  {editingId === cat.id ? (
+                    <div className="flex-1 flex flex-col sm:flex-row gap-3 w-full">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="p-2 rounded-lg bg-white text-zinc-900 flex-1 text-sm outline-none border border-zinc-200 focus:border-zinc-400"
+                      />
+                      <select
+                        value={editColor}
+                        onChange={(e) => setEditColor(e.target.value)}
+                        className="p-2 rounded-lg bg-white text-zinc-900 text-sm outline-none border border-zinc-200 focus:border-zinc-400 font-medium"
+                        style={{ color: editColor }}
+                      >
+                        {COLORS.map((c) => (
+                          <option key={c} value={c} style={{ color: c }}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(cat.id)}
+                          className="bg-zinc-950 text-white px-3 py-2 rounded-lg text-sm whitespace-nowrap hover:bg-zinc-800 font-medium transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingId(null);
+                            setError(null);
+                          }}
+                          className="bg-white text-zinc-900 border border-zinc-200 px-3 py-2 rounded-lg text-sm whitespace-nowrap hover:bg-zinc-50 font-medium transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: cat.color || '#3B82F6' }}></div>
-                      <span className="font-medium text-white">{cat.name}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEditClick(cat)} className="text-zinc-500 hover:text-blue-400 p-2 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                      </button>
-                      <button onClick={() => handleDelete(cat.id)} className="text-zinc-500 hover:text-red-400 p-2 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-            {categories.length === 0 && (
-              <div className="p-8 text-center text-zinc-500">No categories found. Create some on the dashboard!</div>
-            )}
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-4 rounded-full shadow-sm"
+                          style={{ backgroundColor: cat.color || '#3B82F6' }}
+                        ></div>
+                        <span className="font-medium text-zinc-900">{cat.name}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditClick(cat)}
+                          className="text-zinc-600 hover:text-zinc-900 p-2 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(cat.id)}
+                          className="text-zinc-600 hover:text-red-600 p-2 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              {categories.length === 0 && (
+                <div className="p-8 text-center text-zinc-500">
+                  No categories found. Create some on the dashboard!
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Account Settings Area */}
+          <div className="border-t border-white/60 pt-8">
+            <h2 className="text-zinc-500 text-sm font-medium uppercase tracking-wider mb-4">Account</h2>
+            <button
+              onClick={handleSignOut}
+              className="w-full bg-white text-red-600 font-semibold py-3 rounded-xl shadow-sm hover:bg-red-50 transition-colors"
+            >
+              Sign Out
+            </button>
           </div>
         </div>
-        
-        {/* Account Settings Area */}
-        <div className="border-t border-zinc-800 pt-8">
-          <h2 className="text-zinc-400 text-sm font-medium uppercase tracking-wider mb-4">Account</h2>
-          <button 
-            onClick={handleSignOut}
-            className="w-full sm:w-auto px-6 py-2 border border-red-900/50 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors font-medium text-sm"
-          >
-            Sign Out
-          </button>
-        </div>
-
       </div>
     </div>
   );

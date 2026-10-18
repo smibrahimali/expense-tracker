@@ -67,7 +67,6 @@ export default function TransactionsPage() {
       const date = exp.spent_on;
       const category = categories.find(c => c.id === exp.category_id)?.name || 'Expense';
       const amount = (exp.amount_minor / 100).toFixed(2);
-      // Properly escape notes that might contain commas or quotes
       const note = exp.note ? `"${exp.note.replace(/"/g, '""')}"` : '';
       
       return `${date},"${category}",${amount},${note}`;
@@ -86,49 +85,61 @@ export default function TransactionsPage() {
   };
 
   if (!userId) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center"></div>;
   }
 
   return (
-    <div className="min-h-screen bg-black text-white p-4 sm:p-8 font-sans">
-      <div className="max-w-2xl mx-auto mt-8">
+    <div className="min-h-screen p-4 sm:p-8 font-sans text-zinc-900">
+      <div className="max-w-2xl mx-auto mt-8 backdrop-blur-2xl bg-white/40 border border-white/50 shadow-2xl rounded-3xl p-6 sm:p-8">
         
         {/* Header & Navigation */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 bg-zinc-900 rounded-lg border border-zinc-800 text-zinc-400 hover:text-white transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <Link 
+              href="/" 
+              className="p-2 bg-white/60 rounded-xl border border-white/50 text-zinc-600 hover:text-zinc-900 hover:bg-white/80 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6" />
+              </svg>
             </Link>
-            <h1 className="text-2xl font-bold tracking-tight text-white">All Transactions</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">All Transactions</h1>
           </div>
           
           <button 
             onClick={handleExportCSV}
             disabled={filteredExpenses.length === 0}
-            className="flex items-center gap-2 text-sm bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg border border-zinc-700 transition-colors"
+            className="flex items-center gap-2 text-sm bg-zinc-950 hover:bg-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl transition-colors shadow-sm"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
             <span>Export CSV</span>
           </button>
         </div>
 
         {/* Search & Filter Controls */}
-        <div className="bg-zinc-900 p-4 rounded-lg border border-zinc-800 mb-8 space-y-4">
+        <div className="bg-white/60 p-4 rounded-2xl border border-white/50 mb-8 space-y-4 shadow-sm">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1 relative">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
               <input 
                 type="text" 
                 placeholder="Search by note..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded bg-zinc-800 text-white text-sm outline-none focus:border-emerald-500 border border-transparent"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/50 text-zinc-900 placeholder:text-zinc-500 text-sm outline-none focus:ring-2 focus:ring-zinc-200 border border-white/50"
               />
             </div>
             <select 
               value={selectedCategory} 
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full sm:w-48 p-2 rounded bg-zinc-800 text-white text-sm outline-none border border-transparent focus:border-emerald-500"
+              className="w-full sm:w-48 p-2.5 rounded-xl bg-white/50 text-zinc-900 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-zinc-200"
             >
               <option value="all">All Categories</option>
               {categories.map(cat => (
@@ -137,25 +148,25 @@ export default function TransactionsPage() {
             </select>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center border-t border-zinc-800 pt-4">
-            <span className="text-zinc-400 text-sm w-full sm:w-auto">Date Range:</span>
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center border-t border-zinc-200/50 pt-4">
+            <span className="text-zinc-500 text-sm w-full sm:w-auto font-medium">Date Range:</span>
             <input 
               type="date" 
               value={startDate} 
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full sm:w-auto p-2 rounded bg-zinc-800 text-white text-sm outline-none border border-transparent focus:border-emerald-500 [color-scheme:dark]"
+              className="w-full sm:w-auto p-2 rounded-xl bg-white/50 text-zinc-900 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-zinc-200 [color-scheme:light]"
             />
-            <span className="text-zinc-500 hidden sm:inline">to</span>
+            <span className="text-zinc-400 hidden sm:inline">to</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full sm:w-auto p-2 rounded bg-zinc-800 text-white text-sm outline-none border border-transparent focus:border-emerald-500 [color-scheme:dark]"
+              className="w-full sm:w-auto p-2 rounded-xl bg-white/50 text-zinc-900 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-zinc-200 [color-scheme:light]"
             />
             {(startDate || endDate) && (
               <button 
                 onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="text-xs text-zinc-400 hover:text-white transition-colors w-full sm:w-auto text-left sm:text-center mt-1 sm:mt-0"
+                className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors w-full sm:w-auto text-left sm:text-center mt-1 sm:mt-0 px-2 py-1 bg-white/50 rounded-lg border border-white/50"
               >
                 Clear
               </button>
@@ -167,25 +178,25 @@ export default function TransactionsPage() {
         <div className="space-y-3">
           {filteredExpenses.length > 0 ? (
             filteredExpenses.map(exp => (
-              <div key={exp.id} className="flex justify-between items-center bg-zinc-900 p-4 rounded-lg border border-zinc-800">
+              <div key={exp.id} className="flex justify-between items-center bg-white/60 p-4 rounded-xl border border-white/50 shadow-sm hover:bg-white/80 transition-colors">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <p className="font-semibold text-base sm:text-lg text-white truncate">
+                    <p className="font-semibold text-base sm:text-lg text-zinc-900 truncate">
                       {categories.find(c => c.id === exp.category_id)?.name || 'Expense'}
                     </p>
-                    <span className="text-[10px] sm:text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded whitespace-nowrap shrink-0">
+                    <span className="text-[10px] sm:text-xs text-zinc-600 bg-white/80 px-2 py-0.5 rounded-md whitespace-nowrap shrink-0 border border-zinc-100">
                       {new Date(exp.spent_on).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </span>
                   </div>
-                  {exp.note && <p className="text-sm text-zinc-400 mt-0.5">{exp.note}</p>}
+                  {exp.note && <p className="text-sm text-zinc-500 mt-0.5">{exp.note}</p>}
                 </div>
                 <div className="flex items-center gap-4">
-                  <p className="font-bold text-lg text-emerald-400">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
+                  <p className="font-bold text-lg text-zinc-900">PKR {(exp.amount_minor / 100).toFixed(2)}</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-center py-12 bg-zinc-900 rounded-lg border border-zinc-800">
+            <div className="text-center py-12 bg-white/60 rounded-2xl border border-white/50 shadow-sm">
               <p className="text-zinc-500">No transactions match your search criteria.</p>
             </div>
           )}

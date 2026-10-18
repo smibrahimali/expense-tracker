@@ -45,37 +45,46 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md bg-zinc-900 p-8 rounded-lg border border-zinc-800">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">
+    <div className="flex min-h-screen items-center justify-center p-4 font-sans text-zinc-900">
+      <div className="w-full max-w-md backdrop-blur-2xl bg-white/40 border border-white/50 shadow-2xl rounded-[32px] p-8 sm:p-10">
+        
+        {/* Branding Header */}
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <div className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-black text-2xl tracking-tighter shadow-md">
+            A
+          </div>
+          <h1 className="font-bold text-xl tracking-tight text-zinc-900">ExpenseFlow</h1>
+        </div>
+
+        <h2 className="text-2xl font-bold text-zinc-950 mb-6 text-center tracking-tight">
           {isSignUp ? 'Create an Account' : 'Welcome Back'}
         </h2>
         
         {error && (
-          <div className="bg-red-500/10 border border-red-500 text-red-500 p-3 rounded mb-4 text-sm text-center">
+          <div className="bg-red-50/80 backdrop-blur-sm border border-red-200 text-red-600 p-3.5 rounded-xl mb-6 text-sm text-center shadow-sm font-medium">
             {error}
           </div>
         )}
 
         <form onSubmit={handleAuth} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">Email</label>
+            <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5 ml-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2.5 rounded bg-zinc-800 text-white border border-zinc-700 outline-none focus:border-emerald-500 transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-white/60 text-zinc-900 placeholder-zinc-400 border border-white/50 outline-none focus:ring-2 focus:ring-zinc-300 transition-all shadow-sm"
               required
             />
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-1">Password</label>
+            <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5 ml-1">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2.5 rounded bg-zinc-800 text-white border border-zinc-700 outline-none focus:border-emerald-500 transition-colors"
+              className="w-full px-4 py-3 rounded-xl bg-white/60 text-zinc-900 placeholder-zinc-400 border border-white/50 outline-none focus:ring-2 focus:ring-zinc-300 transition-all shadow-sm"
               required
             />
           </div>
@@ -83,17 +92,17 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-emerald-600 text-white py-2.5 rounded font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            className="w-full bg-zinc-950 text-white py-3.5 rounded-xl font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 shadow-md cursor-pointer"
           >
             {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center">
           <button
             type="button"
             onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
-            className="text-sm text-zinc-400 hover:text-white transition-colors"
+            className="text-sm font-medium text-zinc-600 hover:text-zinc-950 transition-colors cursor-pointer"
           >
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
           </button>

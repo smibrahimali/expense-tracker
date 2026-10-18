@@ -49,7 +49,22 @@ export default function Home() {
   }
 
   // If no user, the useEffect will redirect them. Render nothing in the meantime.
-  if (!userId) return null;
+  if (!userId) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm w-full">
+          <p className="font-bold text-zinc-900 mb-1">Session Not Found</p>
+          <p className="text-sm text-zinc-500 mb-5">We couldn't detect a valid Supabase login.</p>
+          <button 
+            onClick={() => router.push('/login')} 
+            className="bg-zinc-950 text-white px-5 py-2.5 rounded-full text-sm font-medium w-full"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  return
-};
+  return <Dashboard userId={userId} />;
+}

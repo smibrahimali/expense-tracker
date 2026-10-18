@@ -21,7 +21,6 @@ body {
   min-height: 100vh;
 }
 
-/* Force any outer wrapper in page.tsx to let the warm backdrop shine through */
 body > div,
 body > main {
   background-color: transparent !important;
