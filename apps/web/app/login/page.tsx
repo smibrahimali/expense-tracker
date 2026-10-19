@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
 import { useRouter } from 'next/navigation';
 
@@ -8,18 +8,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  
+  // NEW: Toast Notification State
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
+    message: '',
+    type: 'success',
+    visible: false,
+  });
   
   const router = useRouter();
   const supabase = createClient();
 
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type, visible: true });
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+    }, 5000);
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError(null);
-    setSuccess(null);
+    setToast((prev) => ({ ...prev, visible: false })); // Hide existing toast on new submission
 
     try {
       if (isSignUp) {
@@ -27,29 +39,76 @@ export default function LoginPage() {
           email, 
           password 
         });
-        if (signUpError) throw signUpError;
-        // Show a nice green UI message instead of a clunky alert box
-        setSuccess('Success! Please check your email to verify your account.');
+        
+        if (signUpError) {
+          // Intercept "already registered" error
+          if (signUpError.message.toLowerCase().includes('already registered') || signUpError.message.toLowerCase().includes('already exists')) {
+            throw new Error('This email is already registered. Please sign in instead.');
+          }
+          throw signUpError;
+        }
+        
+        // Success Popup
+        showToast('Success! A verification link has been sent to your inbox shortly.', 'success');
+        
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ 
           email, 
           password 
         });
-        if (signInError) throw signInError;
+        
+        if (signInError) {
+          // Intercept generic "invalid credentials" to suggest signing up
+          if (signInError.message.toLowerCase().includes('invalid login credentials')) {
+            throw new Error('Account not found or invalid password. Please sign up first if you do not have an account.');
+          }
+          throw signInError;
+        }
         
         // On successful login, push user to the main dashboard
         router.push('/');
         router.refresh();
       }
     } catch (err: any) {
-      setError(err.message);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 font-sans text-zinc-900">
+    <div className="flex min-h-screen items-center justify-center p-4 font-sans text-zinc-900 relative overflow-hidden">
+      
+      {/* Floating Toast Notification (Bottom Right) */}
+      {toast.visible && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="bg-[#1A1A1A] border border-zinc-800 shadow-2xl rounded-xl p-4 flex items-start gap-3 w-80">
+            {toast.type === 'success' ? (
+              <div className="text-emerald-500 mt-0.5 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+            ) : (
+              <div className="text-red-500 mt-0.5 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+            )}
+            
+            <div className="flex-1">
+              <h4 className={`text-sm font-bold tracking-wide ${toast.type === 'success' ? 'text-emerald-500' : 'text-red-500'}`}>
+                {toast.type === 'success' ? 'Link requested' : 'Authentication Error'}
+              </h4>
+              <p className="text-xs text-zinc-300 mt-1.5 leading-relaxed font-medium">
+                {toast.message}
+              </p>
+            </div>
+            
+            <button onClick={() => setToast(prev => ({ ...prev, visible: false }))} className="text-zinc-500 hover:text-white transition-colors shrink-0 cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-md backdrop-blur-2xl bg-white/40 border border-white/50 shadow-2xl rounded-[32px] p-8 sm:p-10">
         
         {/* Branding Header */}
@@ -60,23 +119,9 @@ export default function LoginPage() {
           <h1 className="font-bold text-xl tracking-tight text-zinc-900">ExpenseFlow</h1>
         </div>
 
-        <h2 className="text-2xl font-bold text-zinc-950 mb-6 text-center tracking-tight">
+        <h2 className="text-2xl font-bold text-zinc-950 mb-8 text-center tracking-tight">
           {isSignUp ? 'Create an Account' : 'Welcome Back'}
         </h2>
-        
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50/90 backdrop-blur-sm border border-red-200 text-red-600 p-3.5 rounded-xl mb-6 text-sm text-center shadow-sm font-medium">
-            {error}
-          </div>
-        )}
-
-        {/* Success Message */}
-        {success && (
-          <div className="bg-emerald-50/90 backdrop-blur-sm border border-emerald-200 text-emerald-700 p-3.5 rounded-xl mb-6 text-sm text-center shadow-sm font-medium">
-            {success}
-          </div>
-        )}
 
         <form onSubmit={handleAuth} className="space-y-4">
           <div>
@@ -118,7 +163,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-zinc-950 text-white py-3.5 rounded-xl font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 shadow-md cursor-pointer"
+            className="w-full bg-zinc-950 text-white py-3.5 rounded-xl font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50 mt-4 shadow-md cursor-pointer tracking-wide"
           >
             {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
           </button>
@@ -127,8 +172,8 @@ export default function LoginPage() {
         <div className="mt-8 text-center">
           <button
             type="button"
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); setSuccess(null); }}
-            className="text-sm font-medium text-zinc-600 hover:text-zinc-950 transition-colors cursor-pointer"
+            onClick={() => { setIsSignUp(!isSignUp); setToast((prev) => ({ ...prev, visible: false })); }}
+            className="text-sm font-bold text-zinc-600 hover:text-zinc-950 transition-colors cursor-pointer"
           >
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
           </button>
