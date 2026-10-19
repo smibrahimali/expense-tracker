@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   
+  // Toast Notification State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
     message: '',
     type: 'success',
@@ -21,9 +22,10 @@ export default function LoginPage() {
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type, visible: true });
+    // Increased to 6000ms (6 seconds) to ensure it stays on screen longer
     setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
-    }, 5000);
+    }, 6000);
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -42,7 +44,7 @@ export default function LoginPage() {
           throw signUpError;
         }
 
-        // SUPABASE SECURITY CHECK: If the user already exists, Supabase returns a fake success but with an empty identities array.
+        // SUPABASE SECURITY CHECK
         if (data?.user && data.user.identities && data.user.identities.length === 0) {
           throw new Error('This email is already registered. Please sign in instead.');
         }
@@ -65,6 +67,29 @@ export default function LoginPage() {
         router.push('/');
         router.refresh();
       }
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      showToast('Please enter your email address in the field above first.', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    setToast((prev) => ({ ...prev, visible: false }));
+
+    try {
+      // Add the redirectTo parameter to force Supabase to load the new page
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+      if (error) throw error;
+      showToast('Password reset link sent! Please check your email.', 'success');
     } catch (err: any) {
       showToast(err.message, 'error');
     } finally {
@@ -131,7 +156,19 @@ export default function LoginPage() {
           </div>
           
           <div>
-            <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider mb-1.5 ml-1">Password</label>
+            <div className="flex justify-between items-center mb-1.5 ml-1">
+              <label className="block text-xs font-semibold text-zinc-600 uppercase tracking-wider">Password</label>
+              {/* NEW: Forgot Password Link */}
+              {!isSignUp && (
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  className="text-xs font-bold text-[#C83713] hover:text-orange-950 transition-colors cursor-pointer"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
