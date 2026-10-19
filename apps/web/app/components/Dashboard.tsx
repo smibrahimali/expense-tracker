@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '../../utils/client';
+import { useRouter } from 'next/navigation';
 import {
   BarChart,
   Bar,
@@ -36,7 +37,16 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
   const [formError, setFormError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
+  
   const supabase = createClient();
+  const router = useRouter();
+
+  // Sign Out Handler
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
+  };
 
   // Helper to format numbers with commas
   const formatMoney = (val: number) => {
@@ -338,7 +348,10 @@ export default function Dashboard({ userId }: { userId: string }) {
   const savingsSplit = splitMoney(totalSavings);
 
   return (
-    <div className="w-full max-w-6xl mx-auto my-4 sm:my-8 backdrop-blur-3xl text-zinc-900 rounded-[36px] p-5 sm:p-10 shadow-2xl border border-white/80" style={{ backgroundColor: 'rgba(250, 249, 246, 0.95)' }}>
+    <div 
+      className="w-full max-w-6xl mx-auto my-4 sm:my-8 backdrop-blur-3xl text-zinc-900 rounded-[36px] p-5 sm:p-10 shadow-2xl border border-white/80" 
+      style={{ backgroundColor: 'rgba(250, 249, 246, 0.95)' }}
+    >
       
       {/* Top Pill Navigation Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
@@ -368,13 +381,13 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/settings"
-            className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-700 hover:text-zinc-950 shadow-2xs transition-colors"
-            title="Settings"
+          <button
+            onClick={handleSignOut}
+            className="text-xs font-semibold text-zinc-600 hover:text-red-600 px-4 py-2 rounded-full bg-white border border-zinc-200/80 shadow-sm transition-colors cursor-pointer"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          </Link>
+            Sign Out
+          </button>
+
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-bold text-xs flex items-center justify-center shadow-sm">
             IA
           </div>
