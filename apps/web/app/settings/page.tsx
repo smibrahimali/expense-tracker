@@ -15,7 +15,6 @@ export default function SettingsPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const supabase = createClient();
-  const COLORS = ['#E11D48', '#EA580C', '#D97706', '#10B981', '#3B82F6', '#8B5CF6'];
 
   useEffect(() => {
     fetchData();
@@ -33,7 +32,8 @@ export default function SettingsPage() {
   const handleEditClick = (cat: any) => {
     setEditingId(cat.id);
     setEditName(cat.name);
-    setEditColor(cat.color || COLORS[0]);
+    // Ensure we fall back to a valid hex color if none exists
+    setEditColor(cat.color || '#3B82F6');
     setError(null);
     setSuccess(null);
   };
@@ -58,7 +58,10 @@ export default function SettingsPage() {
     } else {
       setSuccess("Category updated successfully.");
       setEditingId(null);
-      fetchData();
+      // Instantly update the color on the screen instead of waiting for a database refresh
+      setCategories(categories.map(cat => 
+        cat.id === id ? { ...cat, name: editName.trim(), color: editColor } : cat
+      ));
     }
   };
 
@@ -131,17 +134,21 @@ export default function SettingsPage() {
                       onChange={(e) => setEditName(e.target.value)} 
                       className="px-3 py-2.5 rounded-xl bg-white/80 text-zinc-900 flex-1 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-orange-500/30"
                     />
-                    <select 
-                      value={editColor} 
-                      onChange={(e) => setEditColor(e.target.value)}
-                      className="px-3 py-2.5 rounded-xl bg-white/80 text-zinc-900 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-orange-500/30 font-medium"
-                      style={{ color: editColor }}
-                    >
-                      {COLORS.map(c => <option key={c} value={c} style={{ color: c }}>{c}</option>)}
-                    </select>
+                    
+                    {/* New Native Color Picker */}
+                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/80 border border-white/50">
+                      <input 
+                        type="color" 
+                        value={editColor} 
+                        onChange={(e) => setEditColor(e.target.value)}
+                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0"
+                        title="Choose category color"
+                      />
+                    </div>
+
                     <div className="flex gap-2">
-                      <button onClick={() => handleSaveEdit(cat.id)} className="bg-zinc-950 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-zinc-800 font-semibold transition-colors shadow-sm">Save</button>
-                      <button onClick={() => { setEditingId(null); setError(null); }} className="bg-white/80 text-zinc-700 px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-white font-semibold border border-zinc-200 transition-colors">Cancel</button>
+                      <button onClick={() => handleSaveEdit(cat.id)} className="bg-zinc-950 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-zinc-800 font-semibold transition-colors shadow-sm cursor-pointer">Save</button>
+                      <button onClick={() => { setEditingId(null); setError(null); }} className="bg-white/80 text-zinc-700 px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-white font-semibold border border-zinc-200 transition-colors cursor-pointer">Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -151,10 +158,10 @@ export default function SettingsPage() {
                       <span className="font-semibold text-sm text-zinc-900">{cat.name}</span>
                     </div>
                     <div className="flex gap-1.5">
-                      <button onClick={() => handleEditClick(cat)} className="text-zinc-400 hover:text-zinc-900 p-2 transition-colors rounded-lg hover:bg-white/60">
+                      <button onClick={() => handleEditClick(cat)} className="text-zinc-400 hover:text-zinc-900 p-2 transition-colors rounded-lg hover:bg-white/60 cursor-pointer">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                       </button>
-                      <button onClick={() => handleDelete(cat.id)} className="text-zinc-400 hover:text-red-600 p-2 transition-colors rounded-lg hover:bg-white/60">
+                      <button onClick={() => handleDelete(cat.id)} className="text-zinc-400 hover:text-red-600 p-2 transition-colors rounded-lg hover:bg-white/60 cursor-pointer">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                       </button>
                     </div>
