@@ -11,6 +11,13 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+const todayLocal = () => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${now.getFullYear()}-${month}-${day}`;
+};
+
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -21,14 +28,20 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [isEditingSalary, setIsEditingSalary] = useState(false);
   const [salaryInput, setSalaryInput] = useState('');
 
+  // Add Expense State
   const [amount, setAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
+  const [expenseDate, setExpenseDate] = useState(todayLocal());
+  const [paymentMethod, setPaymentMethod] = useState('cash'); // NEW
 
+  // Edit Expense State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editNote, setEditNote] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editPaymentMethod, setEditPaymentMethod] = useState('cash'); // NEW
 
   // Category Management State
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -68,11 +81,16 @@ export default function Dashboard({ userId }: { userId: string }) {
     };
   };
 
-  const todayLocal = () => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${now.getFullYear()}-${month}-${day}`;
+  // Timezone-safe date formatter
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    const datePart = dateStr.split('T')[0];
+    const [y, m, d] = datePart.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   useEffect(() => {
@@ -200,8 +218,9 @@ export default function Dashboard({ userId }: { userId: string }) {
           user_id: userId,
           category_id: categoryId,
           amount_minor: amountMinor,
-          spent_on: todayLocal(),
+          spent_on: expenseDate,
           note: note || null,
+          payment_method: paymentMethod, // NEW
         },
       ])
       .select()
@@ -216,6 +235,8 @@ export default function Dashboard({ userId }: { userId: string }) {
     setExpenses([newExpense, ...expenses]);
     setAmount('');
     setNote('');
+    setPaymentMethod('cash'); // Reset
+    setExpenseDate(todayLocal());
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -234,6 +255,8 @@ export default function Dashboard({ userId }: { userId: string }) {
     setEditAmount((exp.amount_minor / 100).toString());
     setEditCategoryId(exp.category_id);
     setEditNote(exp.note || '');
+    setEditDate(exp.spent_on);
+    setEditPaymentMethod(exp.payment_method || 'cash'); // NEW
   };
 
   const handleSaveEdit = async (id: string) => {
@@ -249,6 +272,8 @@ export default function Dashboard({ userId }: { userId: string }) {
         category_id: editCategoryId,
         amount_minor: amountMinor,
         note: editNote || null,
+        spent_on: editDate,
+        payment_method: editPaymentMethod, // NEW
       })
       .eq('id', id)
       .eq('user_id', userId)
@@ -387,7 +412,13 @@ export default function Dashboard({ userId }: { userId: string }) {
           >
             Sign Out
           </button>
-
+          <button
+            onClick={() => alert('No new notifications!')}
+            className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-700 hover:text-zinc-950 shadow-2xs transition-colors cursor-pointer"
+            title="Notifications"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-bold text-xs flex items-center justify-center shadow-sm">
             IA
           </div>
@@ -647,7 +678,15 @@ export default function Dashboard({ userId }: { userId: string }) {
           </div>
         </div>
 
-        <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        {/* UPDATED TO 6 COLUMNS: Includes Payment Method dropdown */}
+        <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <input
+            type="date"
+            value={expenseDate}
+            onChange={(e) => setExpenseDate(e.target.value)}
+            required
+            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500 [color-scheme:light] cursor-pointer"
+          />
           <input
             ref={amountInputRef}
             type="number"
@@ -661,13 +700,22 @@ export default function Dashboard({ userId }: { userId: string }) {
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500"
+            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500 cursor-pointer"
           >
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
                 {cat.name}
               </option>
             ))}
+          </select>
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500 cursor-pointer"
+          >
+            <option value="cash">Cash</option>
+            <option value="card">Card</option>
+            <option value="bank">Bank Transfer</option>
           </select>
           <input
             type="text"
@@ -680,7 +728,7 @@ export default function Dashboard({ userId }: { userId: string }) {
             type="submit"
             className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-semibold text-sm w-full transition-colors cursor-pointer"
           >
-            Add Expense
+            Add
           </button>
         </form>
         {formError && <p className="text-red-600 text-xs mt-2 px-1">{formError}</p>}
@@ -713,7 +761,13 @@ export default function Dashboard({ userId }: { userId: string }) {
                     className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl shadow-2xs border border-zinc-200/40"
                   >
                     {editingId === exp.id ? (
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-2 items-center w-full">
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center w-full">
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs border border-zinc-200"
+                        />
                         <input
                           type="number"
                           step="0.01"
@@ -731,6 +785,15 @@ export default function Dashboard({ userId }: { userId: string }) {
                               {c.name}
                             </option>
                           ))}
+                        </select>
+                        <select
+                          value={editPaymentMethod}
+                          onChange={(e) => setEditPaymentMethod(e.target.value)}
+                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                        >
+                          <option value="cash">Cash</option>
+                          <option value="card">Card</option>
+                          <option value="bank">Bank</option>
                         </select>
                         <input
                           type="text"
@@ -763,12 +826,16 @@ export default function Dashboard({ userId }: { userId: string }) {
                             <p className="font-semibold text-sm text-zinc-900 truncate">
                               {exp.note || catName}
                             </p>
-                            <p className="text-xs text-zinc-600">
-                              {new Date(exp.spent_on).toLocaleDateString('en-GB', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })}
+                            <p className="text-xs text-zinc-600 flex items-center gap-1.5">
+                              <span>{formatDate(exp.spent_on)}</span>
+                              {exp.payment_method && (
+                                <>
+                                  <span className="text-zinc-300">•</span>
+                                  <span className="capitalize bg-zinc-100 px-1.5 py-0.5 rounded text-[10px] text-zinc-600 font-medium">
+                                    {exp.payment_method}
+                                  </span>
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -852,7 +919,7 @@ export default function Dashboard({ userId }: { userId: string }) {
             )}
           </div>
 
-          {/* Warm Orange Frosted Glass Category Bubbles (From Reference Image 2) */}
+          {/* Warm Orange Frosted Glass Category Bubbles */}
           {chartData.length > 0 && (
             <div className="rounded-[28px] p-6 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-md">
               <p className="text-xs uppercase tracking-wider text-white/80 font-semibold mb-4">
