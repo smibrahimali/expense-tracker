@@ -3,6 +3,44 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '../../utils/client';
 
+const getCategoryEmoji = (name: string) => {
+  const lower = name.toLowerCase();
+  
+  // Education
+  if (lower.includes('education') || lower.includes('school') || lower.includes('college') || lower.includes('uni') || lower.includes('course') || lower.includes('tuition') || lower.includes('book')) return '🎓';
+
+  // Food & Groceries
+  if (lower.includes('food') || lower.includes('burger') || lower.includes('eat') || lower.includes('dine') || lower.includes('restaurant') || lower.includes('pizza')) return '🍔';
+  if (lower.includes('grocer') || lower.includes('mart') || lower.includes('supermarket') || lower.includes('bazaar')) return '🛒';
+  if (lower.includes('coffee') || lower.includes('cafe') || lower.includes('tea') || lower.includes('chai')) return '☕';
+
+  // Transport & Auto
+  if (lower.includes('petrol') || lower.includes('fuel') || lower.includes('gas')) return '⛽';
+  if (lower.includes('car') || lower.includes('vehicle') || lower.includes('auto') || lower.includes('maintenance')) return '🚗';
+  if (lower.includes('taxi') || lower.includes('uber') || lower.includes('careem') || lower.includes('ride') || lower.includes('indrive')) return '🚕';
+  if (lower.includes('travel') || lower.includes('flight') || lower.includes('trip') || lower.includes('train')) return '✈️';
+
+  // Bills & Housing
+  if (lower.includes('bill') || lower.includes('utilit') || lower.includes('electric') || lower.includes('internet') || lower.includes('wifi') || lower.includes('water') || lower.includes('stormfiber')) return '⚡';
+  if (lower.includes('rent') || lower.includes('house') || lower.includes('home') || lower.includes('mortgage')) return '🏠';
+
+  // Health & Fitness
+  if (lower.includes('health') || lower.includes('med') || lower.includes('doctor') || lower.includes('pharmacy') || lower.includes('clinic')) return '💊';
+  if (lower.includes('padel') || lower.includes('sport') || lower.includes('gym') || lower.includes('fitness') || lower.includes('workout')) return '🎾';
+
+  // Shopping & Entertainment
+  if (lower.includes('shop') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('fashion') || lower.includes('mall') || lower.includes('shoes')) return '🛍️';
+  if (lower.includes('sub') || lower.includes('software') || lower.includes('app') || lower.includes('tech') || lower.includes('chatgpt')) return '💻';
+  if (lower.includes('movie') || lower.includes('cinema') || lower.includes('netflix') || lower.includes('game') || lower.includes('entertainment')) return '🍿';
+
+  // Personal & Misc
+  if (lower.includes('gift') || lower.includes('charity') || lower.includes('zakat') || lower.includes('donation')) return '🎁';
+  if (lower.includes('family') || lower.includes('kids')) return '👨‍👩‍👧‍👦';
+  if (lower.includes('personal') || lower.includes('grooming') || lower.includes('salon') || lower.includes('hair') || lower.includes('barber')) return '✂️';
+
+  return '🏷️'; 
+};
+
 export default function SettingsPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -148,7 +186,9 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="flex items-center gap-3.5">
-                     <div className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: '#C83713' }}></div>
+                      <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 shadow-sm flex items-center justify-center text-[#C83713] text-sm shrink-0">
+                        {getCategoryEmoji(cat.name)}
+                      </div>
                       <span className="font-semibold text-sm text-zinc-900">{cat.name}</span>
                     </div>
                     <div className="flex gap-1.5">
