@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createClient } from '../../utils/client';
 import { useRouter } from 'next/navigation';
 
@@ -10,7 +10,6 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // NEW: Toast Notification State
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error'; visible: boolean }>({
     message: '',
     type: 'success',
@@ -22,7 +21,6 @@ export default function LoginPage() {
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type, visible: true });
-    // Auto-hide after 5 seconds
     setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
     }, 5000);
@@ -31,24 +29,24 @@ export default function LoginPage() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setToast((prev) => ({ ...prev, visible: false })); // Hide existing toast on new submission
+    setToast((prev) => ({ ...prev, visible: false })); 
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({ 
+        const { data, error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password 
         });
         
         if (signUpError) {
-          // Intercept "already registered" error
-          if (signUpError.message.toLowerCase().includes('already registered') || signUpError.message.toLowerCase().includes('already exists')) {
-            throw new Error('This email is already registered. Please sign in instead.');
-          }
           throw signUpError;
         }
+
+        // SUPABASE SECURITY CHECK: If the user already exists, Supabase returns a fake success but with an empty identities array.
+        if (data?.user && data.user.identities && data.user.identities.length === 0) {
+          throw new Error('This email is already registered. Please sign in instead.');
+        }
         
-        // Success Popup
         showToast('Success! A verification link has been sent to your inbox shortly.', 'success');
         
       } else {
@@ -58,14 +56,12 @@ export default function LoginPage() {
         });
         
         if (signInError) {
-          // Intercept generic "invalid credentials" to suggest signing up
           if (signInError.message.toLowerCase().includes('invalid login credentials')) {
             throw new Error('Account not found or invalid password. Please sign up first if you do not have an account.');
           }
           throw signInError;
         }
         
-        // On successful login, push user to the main dashboard
         router.push('/');
         router.refresh();
       }
@@ -111,7 +107,6 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md backdrop-blur-2xl bg-white/40 border border-white/50 shadow-2xl rounded-[32px] p-8 sm:p-10">
         
-        {/* Branding Header */}
         <div className="flex flex-col items-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-black text-2xl tracking-tighter shadow-md">
             A

@@ -312,37 +312,36 @@ export default function Dashboard({ userId }: { userId: string }) {
   const savingsSplit = splitMoney(totalSavings);
 
   return (
-    <div 
-      className="w-full max-w-6xl mx-auto my-4 sm:my-8 backdrop-blur-3xl text-zinc-900 rounded-[36px] p-5 sm:p-10 shadow-2xl border border-white/80" 
-      style={{ backgroundColor: 'rgba(250, 249, 246, 0.95)' }}
-    >
+    <div className="w-full max-w-6xl mx-auto my-4 sm:my-8 px-4 sm:px-8 text-zinc-900">
       
+      {/* Floating Glass Navigation Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-black text-xl tracking-tighter shadow-md border border-zinc-800">
             A
           </div>
-          <span className="font-bold text-lg tracking-tight text-zinc-900 drop-shadow-sm">ExpenseFlow</span>
+          <span className="font-bold text-lg tracking-tight text-white drop-shadow-md">ExpenseFlow</span>
         </div>
 
-        <div className="bg-white p-1.5 rounded-full shadow-md border border-zinc-200 inline-flex items-center gap-1">
-          <span className="bg-zinc-950 text-white px-5 py-2 rounded-full text-xs sm:text-sm font-bold shadow-sm border border-zinc-200">
-            Dashboard
+        {/* UPDATED: Translucent Pill Nav with Emojis */}
+        <div className="backdrop-blur-2xl bg-white/30 p-1.5 rounded-full shadow-lg border border-white/40 inline-flex items-center gap-1">
+          <span className="bg-zinc-950 text-white px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border border-zinc-800 flex items-center gap-2">
+            <span>🏠</span> Dashboard
           </span>
-          <Link href="/transactions" className="text-zinc-700 hover:text-zinc-950 px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-colors">
-            Transactions
+          <Link href="/transactions" className="text-zinc-900 hover:bg-white/50 px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center gap-2">
+            <span>📜</span> Transactions
           </Link>
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={() => alert('No new notifications!')} className="w-11 h-11 rounded-full bg-white border border-zinc-300 flex items-center justify-center text-zinc-700 hover:text-zinc-950 shadow-sm transition-colors cursor-pointer hover:bg-zinc-50" title="Notifications">
+          <button onClick={() => alert('No new notifications!')} className="w-11 h-11 rounded-full backdrop-blur-2xl bg-white/30 border border-white/40 flex items-center justify-center text-white hover:bg-white/40 shadow-lg transition-colors cursor-pointer" title="Notifications">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </button>
           
           <div className="relative">
             <button 
               onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="w-11 h-11 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-black text-sm flex items-center justify-center shadow-md border border-orange-700/50 hover:scale-105 transition-transform cursor-pointer"
+              className="w-11 h-11 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-black text-sm flex items-center justify-center shadow-lg border border-orange-500/50 hover:scale-105 transition-transform cursor-pointer"
             >
               IA
             </button>
@@ -367,10 +366,10 @@ export default function Dashboard({ userId }: { userId: string }) {
       </div>
 
       <div className="flex flex-col mb-8">
-        <p className="text-zinc-700 text-sm mb-1.5 font-semibold">
+        <p className="text-white/80 text-sm mb-1.5 font-semibold drop-shadow-sm">
           Take control of your finances with real-time insights
         </p>
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-zinc-950">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white drop-shadow-xl">
           Welcome Back!
         </h1>
       </div>
@@ -483,7 +482,7 @@ export default function Dashboard({ userId }: { userId: string }) {
           <div className="relative pt-6 mt-auto">
             <div className="mx-6 h-3 rounded-t-3xl bg-white/15 backdrop-blur-md border-t border-x border-white/30" />
             <div className="mx-3 h-3 rounded-t-3xl bg-white/25 backdrop-blur-md border-t border-x border-white/40" />
-            <div className="p-5 sm:p-6 rounded-[24px] bg-white/30 backdrop-blur-2xl border border-white/50 flex items-center justify-between shadow-inner">
+            <div className="p-5 sm:p-6 rounded-[24px] bg-white/20 backdrop-blur-2xl border border-white/30 flex items-center justify-between shadow-inner">
               <div>
                 <p className="text-xs font-bold text-white/90 tracking-widest uppercase mb-1">
                   🏦 SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
@@ -498,37 +497,40 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
       </div>
 
-      <div className="bg-white p-6 sm:p-8 rounded-[32px] border border-zinc-200 shadow-xl mb-8">
+      {/* UPDATED: Translucent Frosted Glass: Log New Expense Bar */}
+      <div className="backdrop-blur-3xl bg-white/30 p-6 sm:p-8 rounded-[32px] border border-white/40 shadow-2xl mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 px-1">
           <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 drop-shadow-sm">Log New Expense</h3>
         </div>
 
         <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-6 gap-3">
-          <input type="date" max={todayLocal()} value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="px-4 py-3.5 rounded-xl bg-[#F6F6F7] text-zinc-900 font-semibold w-full text-sm outline-none border border-zinc-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 [color-scheme:light] cursor-pointer transition-all" />
-          <input ref={amountInputRef} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (PKR)" required className="px-4 py-3.5 rounded-xl bg-[#F6F6F7] text-zinc-900 placeholder:text-zinc-500 font-semibold w-full text-sm outline-none border border-zinc-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all" />
-          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-4 py-3.5 rounded-xl bg-[#F6F6F7] text-zinc-900 font-semibold w-full text-sm outline-none border border-zinc-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 cursor-pointer transition-all">
+          <input type="date" max={todayLocal()} value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 [color-scheme:light] cursor-pointer transition-all" />
+          <input ref={amountInputRef} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (PKR)" required className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 transition-all" />
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 cursor-pointer transition-all">
             {PREDEFINED_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>{getCategoryEmoji(cat)} {cat}</option>
             ))}
           </select>
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="px-4 py-3.5 rounded-xl bg-[#F6F6F7] text-zinc-900 font-semibold w-full text-sm outline-none border border-zinc-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 cursor-pointer transition-all">
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 cursor-pointer transition-all">
             <option value="cash">💵 Cash</option>
             <option value="card">💳 Card</option>
             <option value="bank">🏦 Bank Transfer</option>
           </select>
-          <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="px-4 py-3.5 rounded-xl bg-[#F6F6F7] text-zinc-900 placeholder:text-zinc-500 font-semibold w-full text-sm outline-none border border-zinc-200 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all" />
-          <button type="submit" className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3.5 rounded-xl font-black text-sm w-full transition-colors cursor-pointer shadow-md">
-            Add
+          <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 transition-all" />
+          <button type="submit" className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3.5 rounded-xl font-black text-sm w-full transition-colors cursor-pointer shadow-xl border border-zinc-800">
+            ➕ Add
           </button>
         </form>
-        {formError && <p className="text-red-700 bg-red-50 px-4 py-2 rounded-lg text-xs mt-4 font-bold border border-red-200">{formError}</p>}
+        {formError && <p className="text-red-800 bg-red-100/80 px-4 py-2 rounded-lg text-xs mt-4 font-bold border border-red-200">{formError}</p>}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 bg-white p-6 sm:p-8 rounded-[32px] border border-zinc-200 shadow-xl">
+        
+        {/* UPDATED: Translucent Glass Box for Recent Transactions */}
+        <div className="lg:col-span-7 backdrop-blur-3xl bg-white/30 p-6 sm:p-8 rounded-[32px] border border-white/40 shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-base font-black text-zinc-900 drop-shadow-sm uppercase tracking-wider">Recent Transactions</h3>
-            <Link href="/transactions" className="text-xs font-bold text-zinc-700 hover:text-zinc-950 transition-colors border border-zinc-200 bg-zinc-50 px-4 py-2 rounded-xl shadow-sm hover:bg-zinc-100">
+            <Link href="/transactions" className="text-xs font-bold text-zinc-900 hover:bg-white/80 transition-colors border border-white/50 bg-white/50 px-4 py-2 rounded-xl shadow-sm">
               View All
             </Link>
           </div>
@@ -540,21 +542,21 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const catEmoji = getCategoryEmoji(catName);
 
                 return (
-                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F8F8F9] p-4 rounded-2xl shadow-sm border border-zinc-200 hover:border-zinc-300 transition-all">
+                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/50 p-4 rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all">
                     {editingId === exp.id ? (
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center w-full">
-                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2.5 rounded-xl bg-white text-zinc-900 font-semibold w-full text-xs border border-zinc-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20" />
-                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2.5 rounded-xl bg-white text-zinc-900 font-semibold w-full text-xs border border-zinc-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20" />
-                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2.5 rounded-xl bg-white text-zinc-900 font-semibold w-full text-xs border border-zinc-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20">
+                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400" />
+                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400" />
+                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400">
                           {PREDEFINED_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
-                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2.5 rounded-xl bg-white text-zinc-900 font-semibold w-full text-xs border border-zinc-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20">
+                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400">
                           <option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option>
                         </select>
-                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2.5 rounded-xl bg-white text-zinc-900 font-semibold w-full text-xs border border-zinc-200 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20" />
+                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400" />
                         <div className="flex gap-1.5">
                           <button onClick={() => handleSaveEdit(exp.id)} className="bg-zinc-950 text-white px-3 py-1.5 rounded-xl text-xs font-bold w-full shadow-sm">Save</button>
-                          <button onClick={() => setEditingId(null)} className="bg-white border border-zinc-300 text-zinc-800 px-3 py-1.5 rounded-xl text-xs font-bold w-full shadow-sm hover:bg-zinc-50">Cancel</button>
+                          <button onClick={() => setEditingId(null)} className="bg-white/60 border border-white/50 text-zinc-900 px-3 py-1.5 rounded-xl text-xs font-bold w-full shadow-sm hover:bg-white/80">Cancel</button>
                         </div>
                       </div>
                     ) : (
@@ -567,12 +569,12 @@ export default function Dashboard({ userId }: { userId: string }) {
                             <p className="font-bold text-sm text-zinc-950 truncate tracking-wide">
                               {exp.note || catName}
                             </p>
-                            <p className="text-xs text-zinc-600 flex items-center gap-1.5 mt-1 font-semibold">
+                            <p className="text-xs text-zinc-700 flex items-center gap-1.5 mt-1 font-semibold">
                               <span>{formatDate(exp.spent_on)}</span>
                               {exp.payment_method && (
                                 <>
-                                  <span className="text-zinc-300">•</span>
-                                  <span className="capitalize bg-white border border-zinc-200 px-2 py-0.5 rounded-md text-[10px] text-zinc-700 font-bold shadow-sm">
+                                  <span className="text-zinc-400">•</span>
+                                  <span className="capitalize bg-white/80 border border-white/50 px-2 py-0.5 rounded-md text-[10px] text-zinc-800 font-bold shadow-xs">
                                     {getPaymentEmoji(exp.payment_method)}
                                   </span>
                                 </>
@@ -582,7 +584,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                         </div>
 
                         <div className="flex items-center justify-between sm:justify-end gap-4">
-                          <span className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white text-zinc-900 border border-zinc-200 shadow-sm">
+                          <span className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm">
                             {catName}
                           </span>
 
@@ -591,10 +593,10 @@ export default function Dashboard({ userId }: { userId: string }) {
                           </p>
 
                           <div className="flex gap-1.5">
-                            <button onClick={() => handleEditClick(exp)} className="text-zinc-500 hover:text-zinc-900 transition-colors p-2 bg-white hover:bg-zinc-50 rounded-xl border border-zinc-200 shadow-sm cursor-pointer" title="Edit expense">
+                            <button onClick={() => handleEditClick(exp)} className="text-zinc-600 hover:text-zinc-950 transition-colors p-2 bg-white/40 hover:bg-white/80 rounded-xl border border-white/50 shadow-sm cursor-pointer" title="Edit expense">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             </button>
-                            <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-500 hover:text-red-700 transition-colors p-2 bg-white hover:bg-red-50 rounded-xl border border-zinc-200 shadow-sm cursor-pointer" title="Delete expense">
+                            <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-600 hover:text-red-700 transition-colors p-2 bg-white/40 hover:bg-red-50 rounded-xl border border-white/50 shadow-sm cursor-pointer" title="Delete expense">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                             </button>
                           </div>
@@ -606,12 +608,13 @@ export default function Dashboard({ userId }: { userId: string }) {
               })}
             </div>
           ) : (
-            <div className="bg-zinc-50 rounded-[20px] border border-zinc-200 p-8 text-center shadow-inner">
-              <p className="text-zinc-500 text-sm font-bold">No expenses found for this period.</p>
+            <div className="bg-white/40 rounded-[20px] border border-white/50 p-8 text-center shadow-sm">
+              <p className="text-zinc-700 text-sm font-bold">No expenses found for this period.</p>
             </div>
           )}
         </div>
 
+        {/* UPDATED: Right Bento Grid in Translucent Glass */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="grid grid-cols-2 gap-4">
             {chartData.length > 0 ? (
@@ -620,19 +623,19 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const pct = totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
 
                 return (
-                  <div key={item.name} className="bg-white p-6 rounded-[28px] shadow-xl border border-zinc-200 flex flex-col justify-between min-h-[140px] hover:shadow-2xl transition-all">
+                  <div key={item.name} className="backdrop-blur-3xl bg-white/30 p-6 rounded-[28px] shadow-xl border border-white/40 flex flex-col justify-between min-h-[140px] hover:bg-white/40 transition-all">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-black text-zinc-900 truncate tracking-wide">
+                      <span className="text-sm font-black text-zinc-900 truncate tracking-wide drop-shadow-sm">
                         {getCategoryEmoji(item.name)} {item.name}
                       </span>
-                      <span className="text-zinc-400 text-xs font-black">↗</span>
+                      <span className="text-zinc-700 text-xs font-black">↗</span>
                     </div>
                     <div className="mt-4">
                       <p className="text-xl sm:text-2xl font-black tracking-tight text-zinc-950 truncate drop-shadow-sm">
                         PKR {p.whole}
-                        <span className="text-zinc-500 font-bold">.{p.dec}</span>
+                        <span className="text-zinc-700 font-bold">.{p.dec}</span>
                       </p>
-                      <p className="text-[11px] font-black text-[#8A210F] mt-2 bg-orange-50 border border-orange-200 shadow-sm inline-block px-2.5 py-1 rounded-lg">
+                      <p className="text-[11px] font-black text-[#8A210F] mt-2 bg-white/50 border border-white/40 shadow-sm inline-block px-2.5 py-1 rounded-lg">
                         ↗ {pct}% of spending
                       </p>
                     </div>
@@ -640,12 +643,13 @@ export default function Dashboard({ userId }: { userId: string }) {
                 );
               })
             ) : (
-              <div className="col-span-2 bg-white p-6 rounded-[28px] text-center text-zinc-500 text-sm border border-zinc-200 shadow-xl font-bold">
+              <div className="col-span-2 backdrop-blur-3xl bg-white/30 p-6 rounded-[28px] text-center text-zinc-800 text-sm border border-white/40 shadow-xl font-bold">
                 Log expenses to see category cards
               </div>
             )}
           </div>
 
+          {/* Warm Orange Frosted Glass Category Bubbles */}
           {chartData.length > 0 && (
             <div className="rounded-[32px] p-6 sm:p-8 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-2xl border border-white/20">
               <p className="text-xs uppercase tracking-widest text-white/90 font-black mb-5 drop-shadow-sm">
