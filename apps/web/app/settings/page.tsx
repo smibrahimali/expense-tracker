@@ -9,12 +9,12 @@ export default function SettingsPage() {
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editColor, setEditColor] = useState('');
   
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const supabase = createClient();
+  const COLORS = ['#E11D48', '#EA580C', '#D97706', '#10B981', '#3B82F6', '#8B5CF6'];
 
   useEffect(() => {
     fetchData();
@@ -32,8 +32,6 @@ export default function SettingsPage() {
   const handleEditClick = (cat: any) => {
     setEditingId(cat.id);
     setEditName(cat.name);
-    // Ensure we fall back to a valid hex color if none exists
-    setEditColor(cat.color || '#3B82F6');
     setError(null);
     setSuccess(null);
   };
@@ -49,7 +47,7 @@ export default function SettingsPage() {
 
     const { error: updateError } = await supabase
       .from('categories')
-      .update({ name: editName.trim(), color: editColor })
+      .update({ name: editName.trim() })
       .eq('id', id)
       .eq('user_id', userId);
 
@@ -58,9 +56,9 @@ export default function SettingsPage() {
     } else {
       setSuccess("Category updated successfully.");
       setEditingId(null);
-      // Instantly update the color on the screen instead of waiting for a database refresh
+      // Optimistically update the UI
       setCategories(categories.map(cat => 
-        cat.id === id ? { ...cat, name: editName.trim(), color: editColor } : cat
+        cat.id === id ? { ...cat, name: editName.trim() } : cat
       ));
     }
   };
@@ -69,6 +67,7 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
 
+    // 1. Safety Check
     const { count, error: countError } = await supabase
       .from('expenses')
       .select('*', { count: 'exact', head: true })
@@ -85,6 +84,11 @@ export default function SettingsPage() {
       return;
     }
 
+    // 2. Optimistic UI update (instantly remove from screen)
+    const previousCategories = [...categories];
+    setCategories(categories.filter(cat => cat.id !== id));
+
+    // 3. Delete from Database
     const { error: deleteError } = await supabase
       .from('categories')
       .delete()
@@ -92,10 +96,11 @@ export default function SettingsPage() {
       .eq('user_id', userId);
 
     if (deleteError) {
+      // Revert the screen if the database fails
+      setCategories(previousCategories);
       setError(deleteError.message);
     } else {
       setSuccess("Category deleted successfully.");
-      fetchData();
     }
   };
 
@@ -135,17 +140,6 @@ export default function SettingsPage() {
                       className="px-3 py-2.5 rounded-xl bg-white/80 text-zinc-900 flex-1 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-orange-500/30"
                     />
                     
-                    {/* New Native Color Picker */}
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-xl bg-white/80 border border-white/50">
-                      <input 
-                        type="color" 
-                        value={editColor} 
-                        onChange={(e) => setEditColor(e.target.value)}
-                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent p-0"
-                        title="Choose category color"
-                      />
-                    </div>
-
                     <div className="flex gap-2">
                       <button onClick={() => handleSaveEdit(cat.id)} className="bg-zinc-950 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-zinc-800 font-semibold transition-colors shadow-sm cursor-pointer">Save</button>
                       <button onClick={() => { setEditingId(null); setError(null); }} className="bg-white/80 text-zinc-700 px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-white font-semibold border border-zinc-200 transition-colors cursor-pointer">Cancel</button>
@@ -154,7 +148,7 @@ export default function SettingsPage() {
                 ) : (
                   <>
                     <div className="flex items-center gap-3.5">
-                      <div className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: cat.color || '#3B82F6' }}></div>
+                     <div className="w-3.5 h-3.5 rounded-full shadow-sm" style={{ backgroundColor: '#C83713' }}></div>
                       <span className="font-semibold text-sm text-zinc-900">{cat.name}</span>
                     </div>
                     <div className="flex gap-1.5">

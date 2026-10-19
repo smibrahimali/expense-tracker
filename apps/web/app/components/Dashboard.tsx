@@ -293,8 +293,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    const colors = ['#EF4444', '#F59E0B', '#3B82F6', '#10B981', '#8B5CF6', '#EC4899'];
-    const color = colors[categories.length % colors.length];
+    const color = '#C83713';
 
     const { data, error } = await supabase
       .from('categories')
