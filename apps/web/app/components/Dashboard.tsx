@@ -18,6 +18,29 @@ const todayLocal = () => {
   return `${now.getFullYear()}-${month}-${day}`;
 };
 
+// --- SMART EMOJI HELPERS FOR COGNITIVE WORKLOAD REDUCTION ---
+const getCategoryEmoji = (name: string) => {
+  const lower = name.toLowerCase();
+  if (lower.includes('food') || lower.includes('burger') || lower.includes('eat') || lower.includes('dine')) return '🍔';
+  if (lower.includes('grocer') || lower.includes('mart') || lower.includes('supermarket')) return '🛒';
+  if (lower.includes('petrol') || lower.includes('fuel') || lower.includes('gas')) return '⛽';
+  if (lower.includes('car') || lower.includes('vehicle') || lower.includes('auto')) return '🚗';
+  if (lower.includes('padel') || lower.includes('sport') || lower.includes('gym') || lower.includes('fitness')) return '🎾';
+  if (lower.includes('bill') || lower.includes('utilit') || lower.includes('electric') || lower.includes('internet')) return '⚡';
+  if (lower.includes('health') || lower.includes('med') || lower.includes('doctor')) return '💊';
+  if (lower.includes('shop') || lower.includes('cloth') || lower.includes('apparel')) return '🛍️';
+  if (lower.includes('travel') || lower.includes('flight') || lower.includes('trip')) return '✈️';
+  if (lower.includes('sub') || lower.includes('software') || lower.includes('app')) return '💻';
+  return '🏷️'; // Default tag emoji
+};
+
+const getPaymentEmoji = (method: string) => {
+  if (method === 'cash') return '💵 Cash';
+  if (method === 'card') return '💳 Card';
+  if (method === 'bank') return '🏦 Bank';
+  return method;
+};
+
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -33,7 +56,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [categoryId, setCategoryId] = useState('');
   const [note, setNote] = useState('');
   const [expenseDate, setExpenseDate] = useState(todayLocal());
-  const [paymentMethod, setPaymentMethod] = useState('cash'); // NEW
+  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   // Edit Expense State
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -41,7 +64,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [editCategoryId, setEditCategoryId] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDate, setEditDate] = useState('');
-  const [editPaymentMethod, setEditPaymentMethod] = useState('cash'); // NEW
+  const [editPaymentMethod, setEditPaymentMethod] = useState('cash');
 
   // Category Management State
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -61,12 +84,10 @@ export default function Dashboard({ userId }: { userId: string }) {
     router.refresh();
   };
 
-  // Helper to format numbers with commas
   const formatMoney = (val: number) => {
     return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // Helper to split whole numbers and decimals like the reference UI ($1,842.56)
   const splitMoney = (val: number) => {
     const abs = Math.abs(val);
     const formatted = abs.toLocaleString('en-US', {
@@ -81,7 +102,6 @@ export default function Dashboard({ userId }: { userId: string }) {
     };
   };
 
-  // Timezone-safe date formatter
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const datePart = dateStr.split('T')[0];
@@ -94,7 +114,6 @@ export default function Dashboard({ userId }: { userId: string }) {
   };
 
   useEffect(() => {
-    // Fetch Categories
     supabase
       .from('categories')
       .select('*')
@@ -106,7 +125,6 @@ export default function Dashboard({ userId }: { userId: string }) {
         }
       });
 
-    // Fetch All Historical Salaries
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -133,7 +151,6 @@ export default function Dashboard({ userId }: { userId: string }) {
         }
       });
 
-    // Fetch Expenses
     supabase
       .from('expenses')
       .select('*')
@@ -220,7 +237,7 @@ export default function Dashboard({ userId }: { userId: string }) {
           amount_minor: amountMinor,
           spent_on: expenseDate,
           note: note || null,
-          payment_method: paymentMethod, // NEW
+          payment_method: paymentMethod,
         },
       ])
       .select()
@@ -235,7 +252,7 @@ export default function Dashboard({ userId }: { userId: string }) {
     setExpenses([newExpense, ...expenses]);
     setAmount('');
     setNote('');
-    setPaymentMethod('cash'); // Reset
+    setPaymentMethod('cash');
     setExpenseDate(todayLocal());
   };
 
@@ -256,7 +273,7 @@ export default function Dashboard({ userId }: { userId: string }) {
     setEditCategoryId(exp.category_id);
     setEditNote(exp.note || '');
     setEditDate(exp.spent_on);
-    setEditPaymentMethod(exp.payment_method || 'cash'); // NEW
+    setEditPaymentMethod(exp.payment_method || 'cash');
   };
 
   const handleSaveEdit = async (id: string) => {
@@ -273,7 +290,7 @@ export default function Dashboard({ userId }: { userId: string }) {
         amount_minor: amountMinor,
         note: editNote || null,
         spent_on: editDate,
-        payment_method: editPaymentMethod, // NEW
+        payment_method: editPaymentMethod,
       })
       .eq('id', id)
       .eq('user_id', userId)
@@ -386,7 +403,7 @@ export default function Dashboard({ userId }: { userId: string }) {
           <span className="font-bold text-base tracking-tight text-zinc-900">ExpenseFlow</span>
         </div>
 
-        <div className="bg-white p-1.5 rounded-full shadow-xs border border-zinc-200/70 inline-flex items-center gap-1">
+        <div className="bg-white p-1.5 rounded-full shadow-md border border-zinc-200 inline-flex items-center gap-1">
           <span className="bg-zinc-950 text-white px-5 py-2 rounded-full text-xs sm:text-sm font-medium">
             Dashboard
           </span>
@@ -407,18 +424,18 @@ export default function Dashboard({ userId }: { userId: string }) {
         <div className="flex items-center gap-2.5">
           <button
             onClick={handleSignOut}
-            className="text-xs font-semibold text-zinc-600 hover:text-red-600 px-4 py-2 rounded-full bg-white border border-zinc-200/80 shadow-sm transition-colors cursor-pointer"
+            className="text-xs font-semibold text-zinc-600 hover:text-red-600 px-4 py-2.5 rounded-full bg-white border border-zinc-300 shadow-sm transition-colors cursor-pointer hover:bg-zinc-50"
           >
             Sign Out
           </button>
           <button
             onClick={() => alert('No new notifications!')}
-            className="w-10 h-10 rounded-full bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-700 hover:text-zinc-950 shadow-2xs transition-colors cursor-pointer"
+            className="w-10 h-10 rounded-full bg-white border border-zinc-300 flex items-center justify-center text-zinc-700 hover:text-zinc-950 shadow-sm transition-colors cursor-pointer hover:bg-zinc-50"
             title="Notifications"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           </button>
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-bold text-xs flex items-center justify-center shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-bold text-xs flex items-center justify-center shadow-md border border-orange-700/50">
             IA
           </div>
         </div>
@@ -437,25 +454,24 @@ export default function Dashboard({ userId }: { userId: string }) {
 
         <Link
           href="/transactions"
-          className="inline-flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white text-xs sm:text-sm font-medium px-6 py-3.5 rounded-full transition-colors shadow-sm"
+          className="inline-flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white text-xs sm:text-sm font-medium px-6 py-3.5 rounded-full transition-colors shadow-md border border-zinc-800"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          Create Report
+          📊 Create Report
         </Link>
       </div>
 
       {/* Top Hero Row: Two Signature Crimson-to-Orange Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
         
         {/* Left Hero Card: Overview + 6-Month Chart */}
-        <div className="lg:col-span-7 rounded-[28px] p-6 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-lg flex flex-col justify-between min-h-[370px]">
+        <div className="lg:col-span-7 rounded-[28px] p-6 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-xl border border-orange-900/20 flex flex-col justify-between min-h-[370px]">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-white/90 text-sm sm:text-base font-medium">Overview</span>
+              <span className="text-white/90 text-sm sm:text-base font-medium">📉 Overview</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setTimeFilter(timeFilter === 'month' ? 'all' : 'month')}
-                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/15 px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors"
+                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
                 >
                   <span>{timeFilter === 'month' ? 'This Month' : 'All Time'}</span>
                   <span className="text-[10px]">▼</span>
@@ -468,7 +484,7 @@ export default function Dashboard({ userId }: { userId: string }) {
               <span className="text-white/70">.{spentSplit.dec}</span>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3.5 py-1 text-xs text-white/95">
+            <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3.5 py-1 text-xs text-white/95">
               <span>↗ {percentUsed !== null ? `${percentUsed}%` : '0.0%'} this month</span>
             </div>
           </div>
@@ -490,7 +506,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                       const val = Number(payload[0].value || 0);
                       const p = splitMoney(val);
                       return (
-                        <div className="bg-white text-zinc-900 px-4 py-3 rounded-2xl shadow-xl border border-zinc-100">
+                        <div className="bg-white text-zinc-900 px-4 py-3 rounded-2xl shadow-xl border border-zinc-200">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="font-bold text-base">
                               PKR {p.whole}
@@ -520,26 +536,19 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
 
         {/* Right Hero Card: Balance, Salary & Stacked Savings Card */}
-        <div className="lg:col-span-5 rounded-[28px] p-6 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-lg flex flex-col justify-between min-h-[370px]">
+        <div className="lg:col-span-5 rounded-[28px] p-6 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-xl border border-orange-900/20 flex flex-col justify-between min-h-[370px]">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-white/90 text-sm sm:text-base font-medium">Balance & Salary</span>
+              <span className="text-white/90 text-sm sm:text-base font-medium">💰 Balance & Salary</span>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => {
                     setSalaryInput(salary > 0 ? salary.toString() : '');
                     setIsEditingSalary(!isEditingSalary);
                   }}
-                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/15 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors"
+                  className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 shadow-sm px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors cursor-pointer"
                 >
                   {isEditingSalary ? 'Cancel' : 'Edit Salary'}
-                </button>
-                <button
-                  onClick={() => setShowCategoryForm(!showCategoryForm)}
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/15 flex items-center justify-center text-sm font-bold transition-colors"
-                  title="Add New Category"
-                >
-                  +
                 </button>
               </div>
             </div>
@@ -552,13 +561,13 @@ export default function Dashboard({ userId }: { userId: string }) {
                   min="0"
                   value={salaryInput}
                   onChange={(e) => setSalaryInput(e.target.value)}
-                  className="w-full px-4 py-2 bg-black/30 backdrop-blur-md text-white placeholder-white/60 rounded-full text-sm outline-none border border-white/30"
+                  className="w-full px-4 py-2 bg-black/30 backdrop-blur-md text-white placeholder-white/60 rounded-full text-sm outline-none border border-white/30 shadow-inner"
                   placeholder="Monthly Salary (PKR)"
                   autoFocus
                 />
                 <button
                   type="submit"
-                  className="bg-white text-zinc-950 px-4 py-2 rounded-full text-xs font-bold hover:bg-zinc-100 transition-colors shrink-0"
+                  className="bg-white text-zinc-950 px-4 py-2 rounded-full text-xs font-bold hover:bg-zinc-100 transition-colors shrink-0 shadow-sm cursor-pointer"
                 >
                   Save
                 </button>
@@ -573,51 +582,23 @@ export default function Dashboard({ userId }: { userId: string }) {
             )}
 
             <div className="flex flex-wrap items-center justify-between gap-2 mb-5">
-              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3 py-1 text-xs">
+              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 py-1 text-xs">
                 <span>↗ {percentUsed !== null ? `${percentUsed}% used` : 'Set Salary'}</span>
               </div>
-              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3 py-1 text-xs">
+              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 py-1 text-xs">
                 <span>Salary: PKR {formatMoney(salary)}</span>
               </div>
-            </div>
-
-            {/* White Pill Action Buttons (Deposit / Withdraw Style) */}
-            <div className="flex items-center gap-2.5 mb-5">
-              <button
-                type="button"
-                onClick={() => {
-                  setSalaryInput(salary > 0 ? salary.toString() : '');
-                  setIsEditingSalary(true);
-                }}
-                className="flex-1 bg-white hover:bg-zinc-50 text-zinc-950 font-semibold text-xs sm:text-sm py-3 px-4 rounded-full shadow-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95"
-              >
-                <span>↗ Salary</span>
-              </button>
-              <Link
-                href="/transactions"
-                className="w-11 h-11 rounded-full bg-white hover:bg-zinc-50 text-zinc-950 flex items-center justify-center shadow-sm shrink-0 font-bold transition-transform active:scale-95"
-                title="All Transactions"
-              >
-                ⇅
-              </Link>
-              <button
-                type="button"
-                onClick={() => amountInputRef.current?.focus()}
-                className="flex-1 bg-white hover:bg-zinc-50 text-zinc-950 font-semibold text-xs sm:text-sm py-3 px-4 rounded-full shadow-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95"
-              >
-                <span>↘ Expense</span>
-              </button>
             </div>
           </div>
 
           {/* Stacked Frosted Glass Card for Total Rollover Savings */}
-          <div className="relative pt-2 mt-auto">
-            <div className="mx-6 h-2.5 rounded-t-2xl bg-white/15 backdrop-blur-md border-t border-x border-white/20" />
-            <div className="mx-3 h-2.5 rounded-t-2xl bg-white/25 backdrop-blur-md border-t border-x border-white/25" />
-            <div className="p-4 sm:p-5 rounded-2xl bg-white/30 backdrop-blur-md border border-white/35 flex items-center justify-between shadow-inner">
+          <div className="relative pt-6 mt-auto">
+            <div className="mx-6 h-2.5 rounded-t-2xl bg-white/15 backdrop-blur-md border-t border-x border-white/30" />
+            <div className="mx-3 h-2.5 rounded-t-2xl bg-white/25 backdrop-blur-md border-t border-x border-white/40" />
+            <div className="p-4 sm:p-5 rounded-2xl bg-white/30 backdrop-blur-md border border-white/50 flex items-center justify-between shadow-inner">
               <div>
                 <p className="text-[11px] font-medium text-white/90 tracking-wider">
-                  •••• SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
+                  🏦 SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
                 </p>
                 <p className="text-base sm:text-lg font-bold text-white mt-0.5">
                   {savingsSplit.sign}PKR {savingsSplit.whole}.{savingsSplit.dec}
@@ -635,7 +616,7 @@ export default function Dashboard({ userId }: { userId: string }) {
       {showCategoryForm && (
         <form
           onSubmit={handleAddCategory}
-          className="flex gap-2 mb-6 bg-white p-3.5 rounded-2xl border border-zinc-200 shadow-xs"
+          className="flex gap-2 mb-6 bg-white p-4 rounded-[20px] border border-zinc-300 shadow-md"
         >
           <input
             type="text"
@@ -643,11 +624,11 @@ export default function Dashboard({ userId }: { userId: string }) {
             onChange={(e) => setNewCategoryName(e.target.value)}
             placeholder="Category Name (e.g. Padel Match)"
             required
-            className="px-4 py-2.5 rounded-xl bg-zinc-100 text-zinc-900 w-full text-sm outline-none focus:ring-2 focus:ring-orange-500/30"
+            className="px-4 py-2.5 rounded-xl bg-zinc-50 text-zinc-900 w-full text-sm outline-none border border-zinc-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 shadow-sm"
           />
           <button
             type="submit"
-            className="bg-zinc-950 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-zinc-800 text-sm whitespace-nowrap transition-colors"
+            className="bg-zinc-950 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-zinc-800 text-sm whitespace-nowrap transition-colors shadow-sm cursor-pointer"
           >
             Create
           </button>
@@ -655,36 +636,35 @@ export default function Dashboard({ userId }: { userId: string }) {
       )}
 
       {/* Quick Add Expense Bar */}
-      <div className="bg-white p-4 sm:p-5 rounded-[24px] border border-zinc-200/70 shadow-2xs mb-6">
-        <div className="flex justify-between items-center mb-3 px-1">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-600">
+      <div className="bg-white p-5 sm:p-6 rounded-[28px] border border-zinc-300 shadow-md mb-8">
+        <div className="flex justify-between items-center mb-4 px-1">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
             Log New Expense
           </h3>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-3">
             <Link
               href="/settings"
-              className="text-xs text-zinc-600 hover:text-zinc-900 transition-colors font-medium"
+              className="text-xs text-zinc-700 hover:text-zinc-950 transition-colors font-medium border border-zinc-300 bg-white shadow-sm px-3 py-1.5 rounded-lg hover:bg-zinc-50"
             >
               Manage Categories
             </Link>
             <button
               type="button"
               onClick={() => setShowCategoryForm(!showCategoryForm)}
-              className="text-xs text-[#C83713] hover:text-[#9E1C0C] font-semibold transition-colors"
+              className="text-xs text-[#C83713] hover:text-[#9E1C0C] font-semibold transition-colors border border-orange-200 bg-orange-50 shadow-sm px-3 py-1.5 rounded-lg hover:bg-orange-100 cursor-pointer"
             >
-              {showCategoryForm ? 'Close' : '+ New Category'}
+              {showCategoryForm ? 'Close Form' : '+ New Category'}
             </button>
           </div>
         </div>
 
-        {/* UPDATED TO 6 COLUMNS: Includes Payment Method dropdown */}
         <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <input
             type="date"
             value={expenseDate}
             onChange={(e) => setExpenseDate(e.target.value)}
             required
-            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500 [color-scheme:light] cursor-pointer"
+            className="px-4 py-3 rounded-2xl bg-white text-zinc-900 w-full text-sm outline-none border border-zinc-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 [color-scheme:light] cursor-pointer transition-all"
           />
           <input
             ref={amountInputRef}
@@ -694,55 +674,55 @@ export default function Dashboard({ userId }: { userId: string }) {
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Amount (PKR)"
             required
-            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500"
+            className="px-4 py-3 rounded-2xl bg-white text-zinc-900 w-full text-sm outline-none border border-zinc-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
           />
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500 cursor-pointer"
+            className="px-4 py-3 rounded-2xl bg-white text-zinc-900 w-full text-sm outline-none border border-zinc-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 cursor-pointer transition-all"
           >
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>
-                {cat.name}
+                {getCategoryEmoji(cat.name)} {cat.name}
               </option>
             ))}
           </select>
           <select
             value={paymentMethod}
             onChange={(e) => setPaymentMethod(e.target.value)}
-            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500 cursor-pointer"
+            className="px-4 py-3 rounded-2xl bg-white text-zinc-900 w-full text-sm outline-none border border-zinc-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 cursor-pointer transition-all"
           >
-            <option value="cash">Cash</option>
-            <option value="card">Card</option>
-            <option value="bank">Bank Transfer</option>
+            <option value="cash">💵 Cash</option>
+            <option value="card">💳 Card</option>
+            <option value="bank">🏦 Bank Transfer</option>
           </select>
           <input
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Note (optional)"
-            className="px-4 py-3 rounded-2xl bg-[#F6F6F7] text-zinc-900 w-full text-sm outline-none border border-transparent focus:border-orange-500"
+            className="px-4 py-3 rounded-2xl bg-white text-zinc-900 w-full text-sm outline-none border border-zinc-300 shadow-sm focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
           />
           <button
             type="submit"
-            className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-semibold text-sm w-full transition-colors cursor-pointer"
+            className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-bold text-sm w-full transition-colors cursor-pointer shadow-md border border-zinc-800"
           >
-            Add
+            ➕ Add
           </button>
         </form>
-        {formError && <p className="text-red-600 text-xs mt-2 px-1">{formError}</p>}
+        {formError && <p className="text-red-600 text-xs mt-3 px-1 font-medium">{formError}</p>}
       </div>
 
       {/* Bottom Row: Recent Transactions (Left) + Category Bento Grid & Glass Bubbles (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left: Recent Transactions */}
-        <div className="lg:col-span-7 bg-[#F3F3F5] p-6 rounded-[28px]">
+        <div className="lg:col-span-7 bg-[#F3F3F5] p-6 rounded-[28px] border border-zinc-300 shadow-md">
           <div className="flex justify-between items-center mb-5">
-            <h3 className="text-base font-semibold text-zinc-900">Recent Transactions</h3>
+            <h3 className="text-base font-bold text-zinc-900">Recent Transactions</h3>
             <Link
               href="/transactions"
-              className="text-xs font-medium text-zinc-700 hover:text-zinc-950 transition-colors"
+              className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 transition-colors border border-zinc-300 bg-white px-3 py-1.5 rounded-lg shadow-sm hover:bg-zinc-50"
             >
               View All
             </Link>
@@ -753,11 +733,12 @@ export default function Dashboard({ userId }: { userId: string }) {
               {filteredExpenses.slice(0, 5).map((exp) => {
                 const cat = categories.find((c) => c.id === exp.category_id);
                 const catName = cat?.name || 'Expense';
+                const catEmoji = getCategoryEmoji(catName);
 
                 return (
                   <div
                     key={exp.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl shadow-2xs border border-zinc-200/40"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl shadow-sm border border-zinc-300 hover:border-zinc-400 transition-all"
                   >
                     {editingId === exp.id ? (
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center w-full">
@@ -765,19 +746,19 @@ export default function Dashboard({ userId }: { userId: string }) {
                           type="date"
                           value={editDate}
                           onChange={(e) => setEditDate(e.target.value)}
-                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs border border-zinc-200"
+                          className="p-2 rounded-xl bg-zinc-50 text-zinc-900 w-full text-xs border border-zinc-300 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
                         />
                         <input
                           type="number"
                           step="0.01"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
-                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                          className="p-2 rounded-xl bg-zinc-50 text-zinc-900 w-full text-xs border border-zinc-300 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
                         />
                         <select
                           value={editCategoryId}
                           onChange={(e) => setEditCategoryId(e.target.value)}
-                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                          className="p-2 rounded-xl bg-zinc-50 text-zinc-900 w-full text-xs border border-zinc-300 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
                         >
                           {categories.map((c) => (
                             <option key={c.id} value={c.id}>
@@ -788,7 +769,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                         <select
                           value={editPaymentMethod}
                           onChange={(e) => setEditPaymentMethod(e.target.value)}
-                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                          className="p-2 rounded-xl bg-zinc-50 text-zinc-900 w-full text-xs border border-zinc-300 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
                         >
                           <option value="cash">Cash</option>
                           <option value="card">Card</option>
@@ -798,18 +779,18 @@ export default function Dashboard({ userId }: { userId: string }) {
                           type="text"
                           value={editNote}
                           onChange={(e) => setEditNote(e.target.value)}
-                          className="p-2 rounded-xl bg-zinc-100 text-zinc-900 w-full text-xs"
+                          className="p-2 rounded-xl bg-zinc-50 text-zinc-900 w-full text-xs border border-zinc-300 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/20"
                         />
                         <div className="flex gap-1.5">
                           <button
                             onClick={() => handleSaveEdit(exp.id)}
-                            className="bg-zinc-950 text-white px-3 py-1.5 rounded-xl text-xs w-full"
+                            className="bg-zinc-950 text-white px-3 py-1.5 rounded-xl text-xs font-semibold w-full shadow-sm cursor-pointer"
                           >
                             Save
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
-                            className="bg-zinc-200 text-zinc-800 px-3 py-1.5 rounded-xl text-xs w-full"
+                            className="bg-white border border-zinc-300 text-zinc-800 px-3 py-1.5 rounded-xl text-xs font-semibold w-full shadow-sm hover:bg-zinc-50 cursor-pointer"
                           >
                             Cancel
                           </button>
@@ -818,20 +799,20 @@ export default function Dashboard({ userId }: { userId: string }) {
                     ) : (
                       <>
                         <div className="flex items-center gap-3.5 min-w-0">
-                          <div className="w-10 h-10 rounded-full bg-orange-50 border border-orange-200/60 flex items-center justify-center text-[#C83713] font-bold text-xs shrink-0">
-                            {catName.slice(0, 2).toUpperCase()}
+                          <div className="w-10 h-10 rounded-full bg-orange-50 border border-orange-200 shadow-sm flex items-center justify-center text-[#C83713] text-lg shrink-0">
+                            {catEmoji}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-semibold text-sm text-zinc-900 truncate">
+                            <p className="font-bold text-sm text-zinc-900 truncate">
                               {exp.note || catName}
                             </p>
-                            <p className="text-xs text-zinc-600 flex items-center gap-1.5">
-                              <span>{formatDate(exp.spent_on)}</span>
+                            <p className="text-xs text-zinc-600 flex items-center gap-1.5 mt-0.5">
+                              <span className="font-medium">{formatDate(exp.spent_on)}</span>
                               {exp.payment_method && (
                                 <>
                                   <span className="text-zinc-300">•</span>
-                                  <span className="capitalize bg-zinc-100 px-1.5 py-0.5 rounded text-[10px] text-zinc-600 font-medium">
-                                    {exp.payment_method}
+                                  <span className="capitalize bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded text-[10px] text-zinc-700 font-bold tracking-wide">
+                                    {getPaymentEmoji(exp.payment_method)}
                                   </span>
                                 </>
                               )}
@@ -840,25 +821,25 @@ export default function Dashboard({ userId }: { userId: string }) {
                         </div>
 
                         <div className="flex items-center justify-between sm:justify-end gap-4">
-                          <span className="px-3 py-1 rounded-full text-[11px] font-medium bg-orange-50 text-orange-700">
+                          <span className="px-3 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700 border border-orange-200 shadow-sm">
                             {catName}
                           </span>
 
-                          <p className="font-bold text-sm sm:text-base text-[#D92D20] whitespace-nowrap">
+                          <p className="font-black text-sm sm:text-base text-[#D92D20] whitespace-nowrap">
                             -PKR {formatMoney(exp.amount_minor / 100)}
                           </p>
 
                           <div className="flex gap-1">
                             <button
                               onClick={() => handleEditClick(exp)}
-                              className="text-zinc-500 hover:text-zinc-900 transition-colors p-1.5"
+                              className="text-zinc-400 hover:text-zinc-900 transition-colors p-1.5 bg-zinc-50 hover:bg-zinc-100 rounded-lg border border-transparent hover:border-zinc-200 cursor-pointer"
                               title="Edit expense"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             </button>
                             <button
                               onClick={() => handleDeleteExpense(exp.id)}
-                              className="text-zinc-500 hover:text-red-600 transition-colors p-1.5"
+                              className="text-zinc-400 hover:text-red-600 transition-colors p-1.5 bg-zinc-50 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 cursor-pointer"
                               title="Delete expense"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -872,9 +853,9 @@ export default function Dashboard({ userId }: { userId: string }) {
               })}
             </div>
           ) : (
-            <p className="text-zinc-600 text-center py-8 text-sm">
-              No expenses found for this period.
-            </p>
+            <div className="bg-white rounded-2xl border border-zinc-200 p-8 text-center shadow-sm">
+              <p className="text-zinc-500 text-sm font-medium">No expenses found for this period.</p>
+            </div>
           )}
         </div>
 
@@ -886,25 +867,26 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const p = splitMoney(item.value);
                 const pct =
                   totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
+                const emoji = getCategoryEmoji(item.name);
 
                 return (
                   <div
                     key={item.name}
-                    className="bg-white p-5 rounded-[24px] shadow-2xs border border-zinc-200/50 flex flex-col justify-between min-h-[140px]"
+                    className="bg-white p-5 rounded-[24px] shadow-sm border border-zinc-300 flex flex-col justify-between min-h-[140px] hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-zinc-700 truncate">
-                        {item.name}
+                      <span className="text-sm font-bold text-zinc-700 truncate">
+                        {emoji} {item.name}
                       </span>
-                      <span className="text-zinc-500 text-xs">↗</span>
+                      <span className="text-zinc-400 text-xs font-bold">↗</span>
                     </div>
 
                     <div className="mt-4">
-                      <p className="text-xl sm:text-2xl font-bold tracking-tight text-zinc-950 truncate">
+                      <p className="text-xl sm:text-2xl font-black tracking-tight text-zinc-950 truncate">
                         PKR {p.whole}
-                        <span className="text-zinc-500 font-semibold">.{p.dec}</span>
+                        <span className="text-zinc-500 font-bold">.{p.dec}</span>
                       </p>
-                      <p className="text-[11px] font-medium text-[#C83713] mt-1">
+                      <p className="text-[11px] font-bold text-[#C83713] mt-1 bg-orange-50 inline-block px-2 py-0.5 rounded border border-orange-100">
                         ↗ {pct}% of spending
                       </p>
                     </div>
@@ -912,7 +894,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                 );
               })
             ) : (
-              <div className="col-span-2 bg-white p-6 rounded-[24px] text-center text-zinc-600 text-sm">
+              <div className="col-span-2 bg-white p-6 rounded-[24px] text-center text-zinc-600 text-sm border border-zinc-300 shadow-sm font-medium">
                 Log expenses to see category cards
               </div>
             )}
@@ -920,8 +902,8 @@ export default function Dashboard({ userId }: { userId: string }) {
 
           {/* Warm Orange Frosted Glass Category Bubbles */}
           {chartData.length > 0 && (
-            <div className="rounded-[28px] p-6 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-md">
-              <p className="text-xs uppercase tracking-wider text-white/80 font-semibold mb-4">
+            <div className="rounded-[28px] p-6 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-lg border border-orange-900/20">
+              <p className="text-xs uppercase tracking-wider text-white/90 font-bold mb-4">
                 Category Share
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
@@ -937,12 +919,12 @@ export default function Dashboard({ userId }: { userId: string }) {
                   return (
                     <div
                       key={item.name}
-                      className={`${sizes[idx] || 'w-24 h-24'} rounded-full bg-white/20 backdrop-blur-md border border-white/35 flex flex-col items-center justify-center text-center p-2 shadow-inner`}
+                      className={`${sizes[idx] || 'w-24 h-24'} rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center text-center p-2 shadow-inner`}
                     >
-                      <span className="text-[11px] font-medium text-white/90 line-clamp-1 px-1">
-                        {item.name}
+                      <span className="text-[11px] font-bold text-white line-clamp-1 px-1 tracking-wide">
+                        {getCategoryEmoji(item.name)} {item.name}
                       </span>
-                      <span className="text-sm font-bold text-white mt-0.5">{pct}%</span>
+                      <span className="text-sm font-black text-white mt-0.5">{pct}%</span>
                     </div>
                   );
                 })}
