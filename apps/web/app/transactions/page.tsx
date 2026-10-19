@@ -83,6 +83,17 @@ export default function TransactionsPage() {
     fetchUserAndData();
   }, [supabase]);
 
+  const handleDeleteExpense = async (id: string) => {
+    const previous = expenses;
+    setExpenses(expenses.filter((exp) => exp.id !== id));
+    const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', userId);
+    if (error) {
+      console.error('Failed to delete expense:', error);
+      setExpenses(previous);
+      alert(error.message);
+    }
+  };
+
   // Apply Search, Category, and Date Filters
   const filteredExpenses = expenses.filter(exp => {
     const matchesCategory = selectedCategory === 'all' || exp.category_id === selectedCategory;
@@ -95,6 +106,9 @@ export default function TransactionsPage() {
 
     return matchesCategory && matchesSearch && matchesDate;
   });
+
+  // Calculate totals for the summary header
+  const totalFilteredAmount = filteredExpenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
 
   // Export to CSV Logic
   const handleExportCSV = () => {
@@ -143,34 +157,33 @@ export default function TransactionsPage() {
 
   return (
     <div className="min-h-screen p-4 sm:p-8 font-sans text-zinc-900">
-      <div 
-        className="max-w-4xl mx-auto mt-8 backdrop-blur-3xl border border-white/50 shadow-2xl rounded-[36px] p-6 sm:p-10"
-        style={{ backgroundColor: 'rgba(250, 249, 246, 0.95)' }}
-      >
+      
+      {/* Outer Shell: Removed solid background, fully translucent glass */}
+      <div className="max-w-6xl mx-auto mt-4 sm:mt-8 backdrop-blur-3xl bg-white/30 border border-white/40 shadow-2xl rounded-[36px] p-6 sm:p-10">
         
         {/* Header & Navigation */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <Link 
               href="/" 
-              className="p-3 bg-white border border-zinc-200 shadow-sm rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-colors"
+              className="p-3 bg-white/40 border border-white/50 shadow-md rounded-2xl text-zinc-800 hover:text-zinc-950 hover:bg-white/60 hover:-translate-y-0.5 transition-all"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="m15 18-6-6 6-6" />
               </svg>
             </Link>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-zinc-900">Transactions</h1>
-              <p className="text-sm font-semibold text-zinc-500 mt-1">View and filter your complete history</p>
+              <h1 className="text-3xl font-black tracking-tight text-zinc-950 drop-shadow-sm">📜 Transactions Ledger</h1>
+              <p className="text-sm font-bold text-zinc-700 mt-1">View and filter your complete history</p>
             </div>
           </div>
           
           <button 
             onClick={handleExportCSV}
             disabled={filteredExpenses.length === 0}
-            className="flex items-center gap-2 text-sm bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-5 py-3 rounded-xl transition-colors shadow-lg cursor-pointer"
+            className="flex items-center gap-2 text-sm bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold px-6 py-3.5 rounded-2xl transition-all shadow-xl cursor-pointer hover:-translate-y-0.5"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
@@ -179,11 +192,26 @@ export default function TransactionsPage() {
           </button>
         </div>
 
-        {/* Search & Filter Controls */}
-        <div className="bg-white/60 p-5 rounded-2xl border border-white/50 mb-8 shadow-sm">
-          <div className="flex flex-col sm:flex-row gap-3">
+        {/* High-Contrast Summary Headers with Visual Anchors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
+            {/* Translucent Glass Card */}
+            <div className="backdrop-blur-md bg-white/40 p-6 rounded-[28px] border border-white/40 shadow-xl flex flex-col justify-center transform transition-transform hover:scale-[1.01]">
+                <span className="text-xs font-black text-zinc-700 uppercase tracking-widest mb-1.5 drop-shadow-sm">📋 Total Transactions</span>
+                <span className="text-4xl font-black text-zinc-950 drop-shadow-sm">{filteredExpenses.length}</span>
+            </div>
+            
+            {/* Themed Gradient Card for Emphasis - FIXED SOFT BORDER */}
+            <div className="bg-gradient-to-br from-[#450704] via-[#B42910] to-[#F18535] p-6 rounded-[28px] border border-white/20 shadow-2xl flex flex-col justify-center transform transition-transform hover:scale-[1.01]">
+                <span className="text-xs font-black text-white/90 uppercase tracking-widest mb-1.5 drop-shadow-sm">💸 Filtered Amount</span>
+                <span className="text-4xl font-black text-white drop-shadow-md">-PKR {formatMoney(totalFilteredAmount)}</span>
+            </div>
+        </div>
+
+        {/* Search & Filter Controls (Translucent Glass) */}
+        <div className="backdrop-blur-2xl bg-white/40 p-6 rounded-[28px] border border-white/40 mb-8 shadow-xl">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-600">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
               </svg>
@@ -192,97 +220,134 @@ export default function TransactionsPage() {
                 placeholder="Search by note..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-zinc-900 placeholder:text-zinc-400 font-semibold text-sm outline-none focus:ring-2 focus:ring-orange-500/20 border border-zinc-200 shadow-sm transition-all"
+                className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white/60 text-zinc-950 placeholder:text-zinc-600 font-bold text-sm outline-none focus:bg-white/80 border border-white/50 shadow-sm transition-all"
               />
             </div>
             <select 
               value={selectedCategory} 
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full sm:w-56 px-4 py-3 rounded-xl bg-white text-zinc-900 font-semibold text-sm outline-none border border-zinc-200 shadow-sm focus:ring-2 focus:ring-orange-500/20 cursor-pointer transition-all"
+              className="w-full sm:w-64 px-4 py-3.5 rounded-2xl bg-white/60 text-zinc-950 font-bold text-sm outline-none border border-white/50 shadow-sm focus:bg-white/80 cursor-pointer transition-all"
             >
-              <option value="all">All Categories</option>
+              <option value="all">🏷️ All Categories</option>
               {PREDEFINED_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>{getCategoryEmoji(cat)} {cat}</option>
               ))}
             </select>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center border-t border-zinc-200/60 pt-4 mt-4">
-            <span className="text-zinc-600 text-xs uppercase tracking-wider font-bold w-full sm:w-auto">Date Range:</span>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center border-t border-white/30 pt-5 mt-5">
+            <span className="text-zinc-800 text-xs uppercase tracking-widest font-black w-full sm:w-auto drop-shadow-sm">📅 Date Range:</span>
             <input 
               type="date" 
               value={startDate} 
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full sm:w-auto px-3 py-2 rounded-xl bg-white text-zinc-900 font-semibold text-sm outline-none border border-zinc-200 shadow-sm focus:ring-2 focus:ring-orange-500/20 [color-scheme:light] cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/60 text-zinc-950 font-bold text-sm outline-none border border-white/50 shadow-sm focus:bg-white/80 [color-scheme:light] cursor-pointer transition-all"
             />
-            <span className="text-zinc-400 hidden sm:inline font-bold">to</span>
+            <span className="text-zinc-800 hidden sm:inline font-black drop-shadow-sm">to</span>
             <input 
               type="date" 
               value={endDate} 
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full sm:w-auto px-3 py-2 rounded-xl bg-white text-zinc-900 font-semibold text-sm outline-none border border-zinc-200 shadow-sm focus:ring-2 focus:ring-orange-500/20 [color-scheme:light] cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/60 text-zinc-950 font-bold text-sm outline-none border border-white/50 shadow-sm focus:bg-white/80 [color-scheme:light] cursor-pointer transition-all"
             />
             {(startDate || endDate) && (
               <button 
                 onClick={() => { setStartDate(''); setEndDate(''); }}
-                className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors w-full sm:w-auto text-left sm:text-center mt-1 sm:mt-0 px-3 py-2 bg-red-50 hover:bg-red-100 rounded-lg border border-red-100 cursor-pointer"
+                className="text-xs font-black text-red-700 hover:text-red-900 transition-colors w-full sm:w-auto text-left sm:text-center mt-2 sm:mt-0 px-4 py-2.5 bg-white/60 hover:bg-white/80 rounded-xl border border-white/50 cursor-pointer shadow-sm"
               >
-                Clear Dates
+                ✖️ Clear Dates
               </button>
             )}
           </div>
         </div>
 
-        {/* Transactions List */}
-        <div className="space-y-3">
-          {filteredExpenses.length > 0 ? (
-            filteredExpenses.map(exp => {
-              const catName = exp.category_id || 'Other';
-              
-              return (
-                <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-[24px] border border-zinc-200 shadow-sm hover:shadow-md transition-all">
-                  <div className="flex-1 flex items-center gap-4 min-w-0">
-                    <div className="w-12 h-12 rounded-[16px] bg-orange-50 border border-orange-200 shadow-sm flex items-center justify-center text-xl shrink-0">
-                      {getCategoryEmoji(catName)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-sm sm:text-base text-zinc-950 truncate tracking-wide">
-                        {exp.note || catName}
-                      </p>
-                      <p className="text-xs text-zinc-600 flex items-center gap-1.5 mt-1 font-semibold">
-                        <span>{formatDate(exp.spent_on)}</span>
-                        {exp.payment_method && (
-                          <>
-                            <span className="text-zinc-300">•</span>
-                            <span className="capitalize bg-zinc-50 border border-zinc-200 px-2 py-0.5 rounded-md text-[10px] text-zinc-700 font-bold shadow-xs">
-                              {getPaymentEmoji(exp.payment_method)}
+        {/* Excel-style Data Grid (Translucent Glass) */}
+        <div className="backdrop-blur-3xl bg-white/40 rounded-[32px] border border-white/40 shadow-2xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white/30 border-b border-white/40">
+                  <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-zinc-800 w-[15%] drop-shadow-sm">📅 Date</th>
+                  <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-zinc-800 w-[25%] drop-shadow-sm">🏷️ Category</th>
+                  <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-zinc-800 w-[20%] drop-shadow-sm">💳 Payment</th>
+                  <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-zinc-800 w-[25%] drop-shadow-sm">📝 Note</th>
+                  <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-zinc-800 text-right w-[10%] drop-shadow-sm">💰 Amount</th>
+                  <th className="px-6 py-5 text-xs font-black uppercase tracking-widest text-zinc-800 text-center w-[5%] drop-shadow-sm"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/20">
+                {filteredExpenses.length > 0 ? (
+                  filteredExpenses.map(exp => {
+                    const catName = exp.category_id || 'Other';
+                    return (
+                      <tr key={exp.id} className="hover:bg-white/50 transition-all group border-b border-white/30 last:border-0">
+                        {/* Date */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm font-bold text-zinc-800 tracking-wide">{formatDate(exp.spent_on)}</span>
+                        </td>
+                        
+                        {/* Category */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <span className="w-10 h-10 rounded-[12px] bg-white/60 border border-white/50 shadow-inner flex items-center justify-center text-lg shrink-0">
+                                {getCategoryEmoji(catName)}
                             </span>
-                          </>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between sm:justify-end gap-4">
-                    <span className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-zinc-50 text-zinc-800 border border-zinc-200 shadow-sm hidden sm:inline-block">
-                      {catName}
-                    </span>
-                    <p className="font-black text-lg text-[#D92D20] whitespace-nowrap">
-                      -PKR {(exp.amount_minor / 100).toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="text-center py-16 bg-white/60 rounded-[32px] border border-white/50 shadow-sm">
-              <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner border border-zinc-200">
-                📭
-              </div>
-              <p className="text-zinc-900 font-black text-lg">No transactions found</p>
-              <p className="text-zinc-500 text-sm font-semibold mt-1">Try adjusting your search or date filters.</p>
-            </div>
-          )}
+                            <span className="text-sm font-black text-zinc-950 tracking-wide drop-shadow-sm">{catName}</span>
+                          </div>
+                        </td>
+
+                        {/* Payment Method */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            {exp.payment_method ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/60 border border-white/50 text-xs font-black text-zinc-800 capitalize shadow-sm">
+                                    {getPaymentEmoji(exp.payment_method)}
+                                </span>
+                            ) : (
+                                <span className="text-zinc-500 text-sm font-bold">-</span>
+                            )}
+                        </td>
+
+                        {/* Note */}
+                        <td className="px-6 py-4">
+                            <span className="text-sm font-bold text-zinc-800 block truncate max-w-[200px]">
+                                {exp.note || <span className="text-zinc-600 italic">No note</span>}
+                            </span>
+                        </td>
+
+                        {/* Amount */}
+                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                          <span className="text-base font-black text-[#B42910] drop-shadow-sm">
+                            -PKR {formatMoney(exp.amount_minor / 100)}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <button 
+                            onClick={() => handleDeleteExpense(exp.id)} 
+                            className="text-zinc-600 hover:text-red-700 p-2 transition-colors rounded-xl hover:bg-white/80 opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer shadow-sm border border-transparent hover:border-white/50"
+                            title="Delete record"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-20 text-center">
+                      <div className="w-20 h-20 bg-white/40 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-white/50">
+                        📭
+                      </div>
+                      <p className="text-zinc-950 font-black text-xl drop-shadow-sm">No records found</p>
+                      <p className="text-zinc-800 text-sm font-bold mt-1">Try adjusting your search or date filters.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
         
       </div>

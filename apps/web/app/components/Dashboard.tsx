@@ -80,6 +80,15 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [expenseDate, setExpenseDate] = useState(todayLocal());
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
+  // NEW: 30% Salary Warning State
+  const [pendingExpense, setPendingExpense] = useState<{
+    amountMinor: number;
+    categoryId: string;
+    expenseDate: string;
+    note: string;
+    paymentMethod: string;
+  } | null>(null);
+
   // Edit Expense State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
@@ -129,7 +138,6 @@ export default function Dashboard({ userId }: { userId: string }) {
   };
 
   useEffect(() => {
-    // Fetch User Email for Profile Menu
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.email) setUserEmail(data.user.email);
     });
@@ -210,13 +218,31 @@ export default function Dashboard({ userId }: { userId: string }) {
     const amountMinor = Math.round(parseFloat(amount) * 100);
     if (!Number.isFinite(amountMinor) || amountMinor <= 0) { setFormError('Enter an amount greater than 0.'); return; }
 
+    // NEW: 30% Salary Warning Logic
+    const amountMajor = amountMinor / 100;
+    if (salary > 0 && amountMajor >= salary * 0.3) {
+      setPendingExpense({
+        amountMinor,
+        categoryId: selectedCategory,
+        expenseDate,
+        note,
+        paymentMethod,
+      });
+      return; // Pause the submission to show the modal
+    }
+
+    // Proceed if under 30%
+    await executeAddExpense(amountMinor, selectedCategory, expenseDate, note, paymentMethod);
+  };
+
+  const executeAddExpense = async (amtMinor: number, catId: string, date: string, n: string, pMethod: string) => {
     const { data: newExpense, error } = await supabase.from('expenses').insert([{
       user_id: userId, 
-      category_id: selectedCategory, 
-      amount_minor: amountMinor, 
-      spent_on: expenseDate, 
-      note: note || null, 
-      payment_method: paymentMethod,
+      category_id: catId, 
+      amount_minor: amtMinor, 
+      spent_on: date, 
+      note: n || null, 
+      payment_method: pMethod,
     }]).select().single();
 
     if (error || !newExpense) { setFormError(error?.message || 'Failed to add expense.'); return; }
@@ -226,6 +252,7 @@ export default function Dashboard({ userId }: { userId: string }) {
     setNote('');
     setPaymentMethod('cash');
     setExpenseDate(todayLocal());
+    setPendingExpense(null); // Close modal if it was open
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -312,18 +339,61 @@ export default function Dashboard({ userId }: { userId: string }) {
   const savingsSplit = splitMoney(totalSavings);
 
   return (
-    <div className="w-full max-w-6xl mx-auto my-4 sm:my-8 px-4 sm:px-8 text-zinc-900">
-      
+    <div 
+      className="w-full max-w-6xl mx-auto my-4 sm:my-8 px-4 sm:px-8 text-zinc-900" 
+      style={{ backgroundColor: 'transparent' }}
+    >
+      {/* WARNING MODAL OVERLAY */}
+      {pendingExpense && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white/95 backdrop-blur-3xl border border-white/50 shadow-2xl rounded-[32px] p-8 max-w-sm w-full text-center">
+            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-red-100">
+              ⚠️
+            </div>
+            <h3 className="text-xl font-black text-zinc-950 mb-2">High Expense Warning</h3>
+            <p className="text-sm font-semibold text-zinc-600 mb-8 leading-relaxed">
+              This expense of <strong className="text-zinc-950">PKR {formatMoney(pendingExpense.amountMinor / 100)}</strong> is <strong className="text-red-600 border-b border-red-200 pb-0.5">over 30%</strong> of your monthly salary. Are you sure you want to log it?
+            </p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setPendingExpense(null)} 
+                className="flex-1 bg-white border border-zinc-200 text-zinc-800 py-3.5 rounded-xl font-bold shadow-sm hover:bg-zinc-50 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => executeAddExpense(pendingExpense.amountMinor, pendingExpense.categoryId, pendingExpense.expenseDate, pendingExpense.note, pendingExpense.paymentMethod)} 
+                className="flex-1 bg-gradient-to-br from-[#B42910] to-[#D92D20] text-white py-3.5 rounded-xl font-black shadow-lg transition-all cursor-pointer hover:opacity-90"
+              >
+                Yes, log it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Floating Glass Navigation Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-zinc-950 text-white flex items-center justify-center font-black text-xl tracking-tighter shadow-md border border-zinc-800">
-            A
+          <div className="w-12 h-12 rounded-[14px] bg-zinc-950 flex items-center justify-center shadow-lg border border-zinc-800 relative overflow-hidden shrink-0">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#F38636]/20 to-[#6B0F06]/20 opacity-60"></div>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">
+              <rect x="3" y="3" width="14" height="18" rx="2" ry="2"></rect>
+              <rect x="6" y="6" width="8" height="3" rx="0.5" fill="rgba(255,255,255,0.2)" stroke="none"></rect>
+              <line x1="6" y1="12" x2="8" y2="12" strokeWidth="2"></line>
+              <line x1="10" y1="12" x2="12" y2="12" strokeWidth="2"></line>
+              <line x1="6" y1="15" x2="8" y2="15" strokeWidth="2"></line>
+              <line x1="10" y1="15" x2="12" y2="15" strokeWidth="2"></line>
+              <line x1="6" y1="18" x2="8" y2="18" strokeWidth="2"></line>
+              <circle cx="16" cy="16" r="6" fill="#09090b" stroke="#F38636" strokeWidth="2"></circle>
+              <line x1="20.24" y1="20.24" x2="23" y2="23" stroke="#F38636" strokeWidth="2.5"></line>
+              <path d="M16 13v6" stroke="#F38636" strokeWidth="1.5"></path>
+              <path d="M14.5 14.5c-.8 0-1.5.3-1.5 1s.7 1 1.5 1 1.5.3 1.5 1-.7 1-1.5 1" stroke="#F38636" strokeWidth="1.5"></path>
+            </svg>
           </div>
-          <span className="font-bold text-lg tracking-tight text-white drop-shadow-md">ExpenseFlow</span>
+          <span className="font-bold text-xl tracking-tight text-white drop-shadow-md">ExpenseFlow</span>
         </div>
 
-        {/* UPDATED: Translucent Pill Nav with Emojis */}
         <div className="backdrop-blur-2xl bg-white/30 p-1.5 rounded-full shadow-lg border border-white/40 inline-flex items-center gap-1">
           <span className="bg-zinc-950 text-white px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border border-zinc-800 flex items-center gap-2">
             <span>🏠</span> Dashboard
@@ -334,10 +404,6 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={() => alert('No new notifications!')} className="w-11 h-11 rounded-full backdrop-blur-2xl bg-white/30 border border-white/40 flex items-center justify-center text-white hover:bg-white/40 shadow-lg transition-colors cursor-pointer" title="Notifications">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          </button>
-          
           <div className="relative">
             <button 
               onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -482,7 +548,7 @@ export default function Dashboard({ userId }: { userId: string }) {
           <div className="relative pt-6 mt-auto">
             <div className="mx-6 h-3 rounded-t-3xl bg-white/15 backdrop-blur-md border-t border-x border-white/30" />
             <div className="mx-3 h-3 rounded-t-3xl bg-white/25 backdrop-blur-md border-t border-x border-white/40" />
-            <div className="p-5 sm:p-6 rounded-[24px] bg-white/20 backdrop-blur-2xl border border-white/30 flex items-center justify-between shadow-inner">
+            <div className="p-5 sm:p-6 rounded-[24px] bg-white/30 backdrop-blur-2xl border border-white/50 flex items-center justify-between shadow-inner">
               <div>
                 <p className="text-xs font-bold text-white/90 tracking-widest uppercase mb-1">
                   🏦 SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
@@ -497,26 +563,25 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
       </div>
 
-      {/* UPDATED: Translucent Frosted Glass: Log New Expense Bar */}
       <div className="backdrop-blur-3xl bg-white/30 p-6 sm:p-8 rounded-[32px] border border-white/40 shadow-2xl mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 px-1">
           <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 drop-shadow-sm">Log New Expense</h3>
         </div>
 
         <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-6 gap-3">
-          <input type="date" max={todayLocal()} value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 [color-scheme:light] cursor-pointer transition-all" />
-          <input ref={amountInputRef} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (PKR)" required className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 transition-all" />
-          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 cursor-pointer transition-all">
+          <input type="date" max={todayLocal()} value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 [color-scheme:light] cursor-pointer transition-all" />
+          <input ref={amountInputRef} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (PKR)" required className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 transition-all" />
+          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 cursor-pointer transition-all">
             {PREDEFINED_CATEGORIES.map((cat) => (
               <option key={cat} value={cat}>{getCategoryEmoji(cat)} {cat}</option>
             ))}
           </select>
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 cursor-pointer transition-all">
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 cursor-pointer transition-all">
             <option value="cash">💵 Cash</option>
             <option value="card">💳 Card</option>
             <option value="bank">🏦 Bank Transfer</option>
           </select>
-          <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 transition-all" />
+          <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="px-4 py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 transition-all" />
           <button type="submit" className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3.5 rounded-xl font-black text-sm w-full transition-colors cursor-pointer shadow-xl border border-zinc-800">
             ➕ Add
           </button>
@@ -526,7 +591,7 @@ export default function Dashboard({ userId }: { userId: string }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* UPDATED: Translucent Glass Box for Recent Transactions */}
+        {/* UPDATED: Fixed Alignment for Recent Transactions */}
         <div className="lg:col-span-7 backdrop-blur-3xl bg-white/30 p-6 sm:p-8 rounded-[32px] border border-white/40 shadow-2xl">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-base font-black text-zinc-900 drop-shadow-sm uppercase tracking-wider">Recent Transactions</h3>
@@ -542,18 +607,18 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const catEmoji = getCategoryEmoji(catName);
 
                 return (
-                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/50 p-4 rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all">
+                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/50 p-4 rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all">
                     {editingId === exp.id ? (
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center w-full">
-                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400" />
-                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400" />
-                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400">
+                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
+                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
+                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
                           {PREDEFINED_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
-                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400">
+                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
                           <option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option>
                         </select>
-                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-zinc-400" />
+                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2.5 rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
                         <div className="flex gap-1.5">
                           <button onClick={() => handleSaveEdit(exp.id)} className="bg-zinc-950 text-white px-3 py-1.5 rounded-xl text-xs font-bold w-full shadow-sm">Save</button>
                           <button onClick={() => setEditingId(null)} className="bg-white/60 border border-white/50 text-zinc-900 px-3 py-1.5 rounded-xl text-xs font-bold w-full shadow-sm hover:bg-white/80">Cancel</button>
@@ -561,34 +626,34 @@ export default function Dashboard({ userId }: { userId: string }) {
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="w-12 h-12 rounded-[16px] bg-white border border-zinc-200 shadow-sm flex items-center justify-center text-xl shrink-0">
+                        <div className="flex-1 flex items-center gap-4 min-w-0">
+                          <div className="w-12 h-12 rounded-[16px] bg-white/60 border border-white/50 shadow-inner flex items-center justify-center text-xl shrink-0">
                             {catEmoji}
                           </div>
-                          <div className="min-w-0">
+                          <div className="flex flex-col min-w-0">
                             <p className="font-bold text-sm text-zinc-950 truncate tracking-wide">
                               {exp.note || catName}
                             </p>
-                            <p className="text-xs text-zinc-700 flex items-center gap-1.5 mt-1 font-semibold">
-                              <span>{formatDate(exp.spent_on)}</span>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-xs text-zinc-800 font-semibold whitespace-nowrap">{formatDate(exp.spent_on)}</span>
                               {exp.payment_method && (
                                 <>
-                                  <span className="text-zinc-400">•</span>
-                                  <span className="capitalize bg-white/80 border border-white/50 px-2 py-0.5 rounded-md text-[10px] text-zinc-800 font-bold shadow-xs">
+                                  <span className="text-zinc-400 text-xs">•</span>
+                                  <span className="capitalize bg-white/80 border border-white/50 px-2 py-0.5 rounded-md text-[10px] text-zinc-800 font-bold shadow-xs whitespace-nowrap">
                                     {getPaymentEmoji(exp.payment_method)}
                                   </span>
                                 </>
                               )}
-                            </p>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-4">
-                          <span className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm">
+                        <div className="flex items-center sm:justify-end gap-3 shrink-0">
+                          <span className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm hidden md:inline-block">
                             {catName}
                           </span>
 
-                          <p className="font-black text-base sm:text-lg text-[#D92D20] whitespace-nowrap">
+                          <p className="font-black text-sm sm:text-base text-[#B42910] whitespace-nowrap drop-shadow-sm">
                             -PKR {formatMoney(exp.amount_minor / 100)}
                           </p>
 
@@ -614,7 +679,6 @@ export default function Dashboard({ userId }: { userId: string }) {
           )}
         </div>
 
-        {/* UPDATED: Right Bento Grid in Translucent Glass */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="grid grid-cols-2 gap-4">
             {chartData.length > 0 ? (
@@ -649,7 +713,6 @@ export default function Dashboard({ userId }: { userId: string }) {
             )}
           </div>
 
-          {/* Warm Orange Frosted Glass Category Bubbles */}
           {chartData.length > 0 && (
             <div className="rounded-[32px] p-6 sm:p-8 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-2xl border border-white/20">
               <p className="text-xs uppercase tracking-widest text-white/90 font-black mb-5 drop-shadow-sm">
