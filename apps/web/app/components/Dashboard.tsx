@@ -11,6 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import ChatLogger from './ChatLogger'; // <-- Imported AI Logger
 
 const todayLocal = () => {
   const now = new Date();
@@ -101,6 +102,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [showAiChat, setShowAiChat] = useState(false); // <-- AI Chat Toggle State
 
   const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
   const [formError, setFormError] = useState<string | null>(null);
@@ -116,17 +118,16 @@ export default function Dashboard({ userId }: { userId: string }) {
   };
 
   const formatMoney = (val: number) => {
-    return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
   const splitMoney = (val: number) => {
     const abs = Math.abs(val);
     const formatted = abs.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     });
-    const [whole, dec] = formatted.split('.');
-    return { sign: val < 0 ? '-' : '', whole: whole || '0', dec: dec || '00' };
+    return { sign: val < 0 ? '-' : '', whole: formatted };
   };
 
   const formatDate = (dateStr: string) => {
@@ -178,6 +179,12 @@ export default function Dashboard({ userId }: { userId: string }) {
       setExpenses(Array.isArray(data) ? data : []);
     });
   }, [userId, supabase]);
+
+  // Refresh expenses when AI logs a new one (Optional trigger helper)
+  const refreshExpenses = async () => {
+    const { data } = await supabase.from('expenses').select('*').eq('user_id', userId).order('spent_on', { ascending: false }).order('created_at', { ascending: false });
+    if (data) setExpenses(data);
+  };
 
   const handleSaveSalary = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -324,7 +331,7 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   return (
     <div 
-      className="w-full max-w-6xl mx-auto my-4 sm:my-8 px-4 sm:px-8 text-zinc-900" 
+      className="w-full max-w-6xl mx-auto my-4 sm:my-8 px-4 sm:px-8 text-zinc-900 relative" 
       style={{ backgroundColor: 'transparent' }}
     >
       {/* WARNING MODAL OVERLAY */}
@@ -393,7 +400,10 @@ export default function Dashboard({ userId }: { userId: string }) {
               onClick={() => setShowProfileMenu(!showProfileMenu)}
               className="w-11 h-11 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-black text-sm flex items-center justify-center shadow-lg border border-orange-500/50 hover:scale-105 transition-transform cursor-pointer"
             >
-              IA
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
             </button>
 
             {showProfileMenu && (
@@ -437,7 +447,6 @@ export default function Dashboard({ userId }: { userId: string }) {
             </div>
             <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md flex items-end">
               <span>PKR {spentSplit.whole}</span>
-              <span className="text-white/70 text-2xl sm:text-4xl pb-1 sm:pb-1.5">.{spentSplit.dec}</span>
             </div>
             <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs text-white font-medium tracking-wide">
               <span>↗ {percentUsed !== null ? `${percentUsed}%` : '0.0%'} this month</span>
@@ -466,7 +475,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                               <span className="text-[10px] sm:text-xs font-bold text-zinc-600">Spent</span>
                             </div>
                             <span className="font-black text-xs sm:text-sm text-zinc-900">
-                              PKR {sp.whole}<span className="text-zinc-500">.{sp.dec}</span>
+                              PKR {sp.whole}
                             </span>
                           </div>
                           <div className="flex items-center justify-between gap-4 sm:gap-6">
@@ -475,7 +484,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                               <span className="text-[10px] sm:text-xs font-bold text-zinc-600">Left</span>
                             </div>
                             <span className="font-black text-xs sm:text-sm text-emerald-600">
-                              {rp.sign}PKR {rp.whole}<span className="opacity-70">.{rp.dec}</span>
+                              {rp.sign}PKR {rp.whole}
                             </span>
                           </div>
                         </div>
@@ -507,7 +516,6 @@ export default function Dashboard({ userId }: { userId: string }) {
             ) : (
               <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md flex items-end">
                 <span>{remainingSplit.sign}PKR {remainingSplit.whole}</span>
-                <span className="text-white/70 text-2xl sm:text-4xl pb-1 sm:pb-1.5">.{remainingSplit.dec}</span>
               </div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
@@ -528,7 +536,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                   🏦 SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
                 </p>
                 <p className="text-lg sm:text-2xl font-black text-white drop-shadow-sm">
-                  {savingsSplit.sign}PKR {savingsSplit.whole}.{savingsSplit.dec}
+                  {savingsSplit.sign}PKR {savingsSplit.whole}
                 </p>
               </div>
               <span className="text-lg sm:text-2xl font-black tracking-widest italic text-white/90 drop-shadow-sm">VISA</span>
@@ -581,7 +589,7 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const catEmoji = getCategoryEmoji(catName);
 
                 return (
-                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all w-full overflow-hidden">
+                  <div key={exp.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all w-full">
                     
                     {/* EDIT STATE */}
                     {editingId === exp.id ? (
@@ -685,7 +693,6 @@ export default function Dashboard({ userId }: { userId: string }) {
                       {/* FIXED: Dynamic Scaling for PKR Amounts */}
                       <p className="text-[17px] sm:text-xl lg:text-2xl font-black tracking-tight text-zinc-950 drop-shadow-sm leading-tight break-words">
                         PKR {p.whole}
-                        <span className="text-zinc-700 font-bold text-sm lg:text-lg">.{p.dec}</span>
                       </p>
                       <p className="text-[9px] sm:text-[11px] font-black text-[#8A210F] mt-1.5 sm:mt-2 bg-white/50 border border-white/40 shadow-sm inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg break-words max-w-full">
                         ↗ {pct}% of spending
@@ -726,6 +733,22 @@ export default function Dashboard({ userId }: { userId: string }) {
           )}
         </div>
       </div>
+
+      {/* Floating AI Logger Toggle Button */}
+      <button 
+        onClick={() => setShowAiChat(!showAiChat)}
+        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform z-50 border border-orange-400/50 cursor-pointer"
+        title="AI Quick Logger"
+      >
+        <span className="text-2xl sm:text-3xl drop-shadow-md">{showAiChat ? '✖️' : '✨'}</span>
+      </button>
+
+      {/* Floating AI Chat Window - CORRECTLY INSIDE COMPONENT */}
+      {showAiChat && (
+        <div className="fixed bottom-24 right-6 sm:right-8 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
+          <ChatLogger userId={userId} onExpenseAdded={refreshExpenses} />
+        </div>
+      )}
     </div>
   );
 }
