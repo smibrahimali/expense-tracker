@@ -65,7 +65,6 @@ const getPaymentEmoji = (method: string) => {
 
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
 
   // Salary State
   const [salary, setSalary] = useState<number>(0);
@@ -81,7 +80,7 @@ export default function Dashboard({ userId }: { userId: string }) {
   const [expenseDate, setExpenseDate] = useState(todayLocal());
   const [paymentMethod, setPaymentMethod] = useState('cash');
 
-  // NEW: 30% Salary Warning State
+  // Warning Modal State
   const [pendingExpense, setPendingExpense] = useState<{
     amountMinor: number;
     categoryId: string;
@@ -100,7 +99,6 @@ export default function Dashboard({ userId }: { userId: string }) {
 
   // UI & Menu States
   const [showCategoryForm, setShowCategoryForm] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [userEmail, setUserEmail] = useState('');
 
@@ -143,12 +141,6 @@ export default function Dashboard({ userId }: { userId: string }) {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user?.email) setUserEmail(data.user.email);
-    });
-
-    supabase.from('categories').select('*').eq('user_id', userId).then(({ data }) => {
-      if (data && data.length > 0) {
-        setCategories(data);
-      }
     });
 
     const now = new Date();
@@ -227,31 +219,18 @@ export default function Dashboard({ userId }: { userId: string }) {
     const amountMinor = Math.round(parseFloat(amount) * 100);
     if (!Number.isFinite(amountMinor) || amountMinor <= 0) { setFormError('Enter an amount greater than 0.'); return; }
 
-    // NEW: 30% Salary Warning Logic
     const amountMajor = amountMinor / 100;
     if (salary > 0 && amountMajor >= salary * 0.3) {
-      setPendingExpense({
-        amountMinor,
-        categoryId: selectedCategory,
-        expenseDate,
-        note,
-        paymentMethod,
-      });
-      return; // Pause the submission to show the modal
+      setPendingExpense({ amountMinor, categoryId: selectedCategory, expenseDate, note, paymentMethod });
+      return; 
     }
 
-    // Proceed if under 30%
     await executeAddExpense(amountMinor, selectedCategory, expenseDate, note, paymentMethod);
   };
 
   const executeAddExpense = async (amtMinor: number, catId: string, date: string, n: string, pMethod: string) => {
     const { data: newExpense, error } = await supabase.from('expenses').insert([{
-      user_id: userId, 
-      category_id: catId, 
-      amount_minor: amtMinor, 
-      spent_on: date, 
-      note: n || null, 
-      payment_method: pMethod,
+      user_id: userId, category_id: catId, amount_minor: amtMinor, spent_on: date, note: n || null, payment_method: pMethod,
     }]).select().single();
 
     if (error || !newExpense) { setFormError(error?.message || 'Failed to add expense.'); return; }
@@ -261,7 +240,7 @@ export default function Dashboard({ userId }: { userId: string }) {
     setNote('');
     setPaymentMethod('cash');
     setExpenseDate(todayLocal());
-    setPendingExpense(null); // Close modal if it was open
+    setPendingExpense(null); 
   };
 
   const handleDeleteExpense = async (id: string) => {
@@ -285,32 +264,13 @@ export default function Dashboard({ userId }: { userId: string }) {
     if (!Number.isFinite(amountMinor) || amountMinor <= 0) { setFormError('Enter an amount greater than 0.'); return; }
 
     const { data: updatedExpense, error } = await supabase.from('expenses').update({
-      category_id: editCategory, 
-      amount_minor: amountMinor, 
-      note: editNote || null, 
-      spent_on: editDate, 
-      payment_method: editPaymentMethod,
+      category_id: editCategory, amount_minor: amountMinor, note: editNote || null, spent_on: editDate, payment_method: editPaymentMethod,
     }).eq('id', id).eq('user_id', userId).select().single();
 
     if (error || !updatedExpense) { setFormError(error?.message || 'Failed to update expense.'); return; }
 
     setExpenses(expenses.map((exp) => (exp.id === id ? { ...exp, ...updatedExpense } : exp)));
     setEditingId(null);
-  };
-
-  const handleAddCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-    const color = '#C83713';
-
-    const { data, error } = await supabase.from('categories').insert([{ name: newCategoryName, user_id: userId, color }]).select();
-    if (error) { setFormError(error.message); return; }
-
-    if (data && data.length > 0) {
-      setCategories([...categories, data[0]]);
-    }
-    setNewCategoryName('');
-    setShowCategoryForm(false);
   };
 
   const filteredExpenses = expenses.filter((exp) => {
@@ -396,8 +356,8 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
       )}
 
-      {/* Floating Glass Navigation Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8 sm:mb-10">
+      {/* Navigation Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-[14px] bg-zinc-950 flex items-center justify-center shadow-lg border border-zinc-800 relative overflow-hidden shrink-0">
             <div className="absolute inset-0 bg-gradient-to-br from-[#F38636]/20 to-[#6B0F06]/20 opacity-60"></div>
@@ -455,8 +415,7 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
       </div>
 
-      {/* Floating Welcome Title */}
-      <div className="flex flex-col mb-6 sm:mb-8 text-center sm:text-left mt-6 sm:mt-0">
+      <div className="flex flex-col mb-8 text-center sm:text-left">
         <p className="text-white/80 text-sm sm:text-base mb-1.5 font-semibold drop-shadow-md">
           Take control of your finances with real-time insights
         </p>
@@ -465,8 +424,8 @@ export default function Dashboard({ userId }: { userId: string }) {
         </h1>
       </div>
 
+      {/* Hero Dashboards */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-        
         <div className="lg:col-span-7 rounded-[32px] p-5 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-2xl border border-white/20 flex flex-col justify-between min-h-[300px] sm:min-h-[370px]">
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
@@ -476,22 +435,18 @@ export default function Dashboard({ userId }: { userId: string }) {
                 <span className="text-[10px]">▼</span>
               </button>
             </div>
-
-            <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md">
+            <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md flex items-end">
               <span>PKR {spentSplit.whole}</span>
-              <span className="text-white/70 text-2xl sm:text-4xl">.{spentSplit.dec}</span>
+              <span className="text-white/70 text-2xl sm:text-4xl pb-1 sm:pb-1.5">.{spentSplit.dec}</span>
             </div>
-
             <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs text-white font-medium tracking-wide">
               <span>↗ {percentUsed !== null ? `${percentUsed}%` : '0.0%'} this month</span>
             </div>
           </div>
-
           <div className="h-32 sm:h-44 mt-6 sm:mt-8 -mx-2">
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart data={trendData} barCategoryGap="22%">
                 <XAxis dataKey="month" stroke="rgba(255,255,255,0.9)" fontSize={10} tickLine={false} axisLine={false} fontWeight={600} />
-                
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.15)', radius: 8 }}
                   content={({ active, payload }) => {
@@ -500,13 +455,11 @@ export default function Dashboard({ userId }: { userId: string }) {
                       const remaining = Number(payload.find(p => p.dataKey === 'remaining')?.value || 0);
                       const sp = splitMoney(spent);
                       const rp = splitMoney(remaining);
-                      
                       return (
                         <div className="backdrop-blur-xl bg-white/95 text-zinc-900 px-4 sm:px-5 py-3 sm:py-4 rounded-2xl shadow-xl border border-white/50 min-w-[150px] sm:min-w-[180px]">
                           <p className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-widest mb-2 sm:mb-3 border-b border-zinc-200/80 pb-2">
                             {payload[0].payload.fullMonthLabel}
                           </p>
-                          
                           <div className="flex items-center justify-between gap-4 sm:gap-6 mb-2">
                             <div className="flex items-center gap-1.5">
                               <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm bg-zinc-300" />
@@ -516,7 +469,6 @@ export default function Dashboard({ userId }: { userId: string }) {
                               PKR {sp.whole}<span className="text-zinc-500">.{sp.dec}</span>
                             </span>
                           </div>
-                          
                           <div className="flex items-center justify-between gap-4 sm:gap-6">
                             <div className="flex items-center gap-1.5">
                               <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500" />
@@ -547,19 +499,17 @@ export default function Dashboard({ userId }: { userId: string }) {
                 {isEditingSalary ? 'Cancel' : 'Edit Salary'}
               </button>
             </div>
-
             {isEditingSalary ? (
               <form onSubmit={handleSaveSalary} className="flex gap-2 items-center my-3">
                 <input type="number" step="0.01" min="0" value={salaryInput} onChange={(e) => setSalaryInput(e.target.value)} className="w-full px-4 sm:px-5 py-2.5 sm:py-3 bg-black/30 backdrop-blur-md text-white placeholder-white/60 rounded-full text-sm font-bold outline-none border border-white/30 shadow-inner" placeholder="Monthly Salary (PKR)" autoFocus />
                 <button type="submit" className="bg-white text-zinc-950 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-sm font-black hover:bg-zinc-100 transition-colors shrink-0 shadow-lg cursor-pointer">Save</button>
               </form>
             ) : (
-              <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md">
+              <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md flex items-end">
                 <span>{remainingSplit.sign}PKR {remainingSplit.whole}</span>
-                <span className="text-white/70 text-2xl sm:text-4xl">.{remainingSplit.dec}</span>
+                <span className="text-white/70 text-2xl sm:text-4xl pb-1 sm:pb-1.5">.{remainingSplit.dec}</span>
               </div>
             )}
-
             <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
               <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs font-medium tracking-wide">
                 <span>↗ {percentUsed !== null ? `${percentUsed}% used` : 'Set Salary'}</span>
@@ -569,7 +519,6 @@ export default function Dashboard({ userId }: { userId: string }) {
               </div>
             </div>
           </div>
-
           <div className="relative pt-6 mt-auto">
             <div className="mx-4 sm:mx-6 h-2 sm:h-3 rounded-t-2xl sm:rounded-t-3xl bg-white/15 backdrop-blur-md border-t border-x border-white/30" />
             <div className="mx-2 sm:mx-3 h-2 sm:h-3 rounded-t-2xl sm:rounded-t-3xl bg-white/25 backdrop-blur-md border-t border-x border-white/40" />
@@ -588,11 +537,11 @@ export default function Dashboard({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {/* Log New Expense Bar */}
       <div className="backdrop-blur-3xl bg-white/30 p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-white/40 shadow-2xl mb-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6 px-1">
           <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 drop-shadow-sm">Log New Expense</h3>
         </div>
-
         <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-6 gap-3">
           <input type="date" max={todayLocal()} value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 [color-scheme:light] cursor-pointer transition-all" />
           <input ref={amountInputRef} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (PKR)" required className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 transition-all" />
@@ -616,7 +565,8 @@ export default function Dashboard({ userId }: { userId: string }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <div className="lg:col-span-7 backdrop-blur-3xl bg-white/30 p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-white/40 shadow-2xl">
+        {/* RECENT TRANSACTIONS CONTAINER */}
+        <div className="lg:col-span-7 backdrop-blur-3xl bg-white/30 p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-white/40 shadow-2xl overflow-hidden w-full">
           <div className="flex justify-between items-center mb-5 sm:mb-6">
             <h3 className="text-sm sm:text-base font-black text-zinc-900 drop-shadow-sm uppercase tracking-wider">Recent Transactions</h3>
             <Link href="/transactions" className="text-xs font-bold text-zinc-900 hover:bg-white/80 transition-colors border border-white/50 bg-white/50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-sm">
@@ -631,57 +581,67 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const catEmoji = getCategoryEmoji(catName);
 
                 return (
-                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all">
+                  <div key={exp.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-white/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all w-full overflow-hidden">
+                    
+                    {/* EDIT STATE */}
                     {editingId === exp.id ? (
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-2 items-center w-full">
-                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
-                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
-                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
+                      <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
+                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
+                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
                           {PREDEFINED_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
                         </select>
-                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
+                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
                           <option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option>
                         </select>
-                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
-                        <div className="flex gap-1.5">
-                          <button onClick={() => handleSaveEdit(exp.id)} className="bg-zinc-950 text-white px-2 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold w-full shadow-sm">Save</button>
-                          <button onClick={() => setEditingId(null)} className="bg-white/60 border border-white/50 text-zinc-900 px-2 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-xs font-bold w-full shadow-sm hover:bg-white/80">Cancel</button>
+                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" placeholder="Note" />
+                        <div className="flex gap-2 w-full">
+                          <button onClick={() => handleSaveEdit(exp.id)} className="flex-1 bg-zinc-950 text-white px-2 py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold shadow-sm cursor-pointer">Save</button>
+                          <button onClick={() => setEditingId(null)} className="flex-1 bg-white/60 border border-white/50 text-zinc-900 px-2 py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold shadow-sm hover:bg-white/80 cursor-pointer">Cancel</button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <div className="flex-1 flex items-center gap-3 sm:gap-4 min-w-0">
+                        {/* NORMAL STATE - LEFT COLUMN (Icon, Title, Date) */}
+                        <div className="flex items-center gap-3 sm:gap-4 w-full md:flex-1 min-w-0">
                           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-[12px] sm:rounded-[16px] bg-white/60 border border-white/50 shadow-inner flex items-center justify-center text-lg sm:text-xl shrink-0">
                             {catEmoji}
                           </div>
-                          <div className="flex flex-col min-w-0">
-                            <p className="font-bold text-xs sm:text-sm text-zinc-950 truncate tracking-wide">
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <p className="font-bold text-xs sm:text-sm text-zinc-950 tracking-wide break-words leading-tight">
                               {exp.note || catName}
                             </p>
                             <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 flex-wrap">
-                              <span className="text-[10px] sm:text-xs text-zinc-800 font-semibold whitespace-nowrap">{formatDate(exp.spent_on)}</span>
+                              <span className="text-[10px] sm:text-xs text-zinc-800 font-bold whitespace-nowrap">{formatDate(exp.spent_on)}</span>
                               {exp.payment_method && (
-                                <>
-                                  <span className="text-zinc-400 text-[10px] sm:text-xs">•</span>
-                                  <span className="capitalize bg-white/80 border border-white/50 px-1.5 sm:px-2 py-0.5 rounded-md text-[9px] sm:text-[10px] text-zinc-800 font-bold shadow-xs whitespace-nowrap">
-                                    {getPaymentEmoji(exp.payment_method)}
-                                  </span>
-                                </>
+                                <span className="capitalize bg-white/80 border border-white/50 px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] text-zinc-800 font-bold shadow-xs whitespace-nowrap">
+                                  {getPaymentEmoji(exp.payment_method)}
+                                </span>
                               )}
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center sm:justify-end gap-2 sm:gap-3 shrink-0 mt-2 sm:mt-0">
-                          <span className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm hidden md:inline-block">
+                        {/* NORMAL STATE - CENTER COLUMN (Category Pill) */}
+                        <div className="hidden md:flex md:flex-1 items-center justify-center border-l border-r border-white/30 px-2 min-w-0">
+                          <span className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm truncate max-w-full">
+                            {catName}
+                          </span>
+                        </div>
+
+                        {/* NORMAL STATE - RIGHT COLUMN (Amount, Actions) - FIXED OVERLAP */}
+                        <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto md:flex-1 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-0 border-white/30 min-w-0 md:pl-6">
+                          
+                          <span className="md:hidden px-2 py-1 rounded-md text-[9px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm truncate max-w-[90px] shrink-0">
                             {catName}
                           </span>
 
-                          <p className="font-black text-sm sm:text-base text-[#B42910] whitespace-nowrap drop-shadow-sm">
+                          <p className="font-black text-sm sm:text-base text-[#B42910] drop-shadow-sm ml-auto text-right leading-tight">
                             -PKR {formatMoney(exp.amount_minor / 100)}
                           </p>
 
-                          <div className="flex gap-1 sm:gap-1.5">
+                          {/* DO NOT CHANGE DELETE SECTION AS REQUESTED */}
+                          <div className="flex gap-1 sm:gap-1.5 shrink-0 ml-1 sm:ml-2">
                             <button onClick={() => handleEditClick(exp)} className="text-zinc-600 hover:text-zinc-950 transition-colors p-1.5 sm:p-2 bg-white/40 hover:bg-white/80 rounded-lg sm:rounded-xl border border-white/50 shadow-sm cursor-pointer" title="Edit expense">
                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             </button>
@@ -711,19 +671,23 @@ export default function Dashboard({ userId }: { userId: string }) {
                 const pct = totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
 
                 return (
-                  <div key={item.name} className="backdrop-blur-3xl bg-white/30 p-4 sm:p-6 rounded-[20px] sm:rounded-[28px] shadow-xl border border-white/40 flex flex-col justify-between min-h-[120px] sm:min-h-[140px] hover:bg-white/40 transition-all">
+                  <div key={item.name} className="backdrop-blur-3xl bg-white/30 p-4 sm:p-5 lg:p-6 rounded-[20px] sm:rounded-[28px] shadow-xl border border-white/40 flex flex-col justify-between min-h-[120px] sm:min-h-[140px] hover:bg-white/40 transition-all overflow-hidden">
                     <div className="flex items-center justify-between gap-1 sm:gap-2">
-                      <span className="text-xs sm:text-sm font-black text-zinc-900 truncate tracking-wide drop-shadow-sm">
-                        {getCategoryEmoji(item.name)} {item.name}
-                      </span>
-                      <span className="text-zinc-700 text-[10px] sm:text-xs font-black">↗</span>
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                        <span className="text-base sm:text-xl drop-shadow-sm shrink-0">{getCategoryEmoji(item.name)}</span>
+                        <span className="text-[10px] sm:text-xs lg:text-sm font-black text-zinc-900 truncate tracking-wide drop-shadow-sm uppercase">
+                          {item.name}
+                        </span>
+                      </div>
+                      <span className="text-zinc-700 text-[10px] sm:text-xs font-black shrink-0">↗</span>
                     </div>
                     <div className="mt-3 sm:mt-4">
-                      <p className="text-lg sm:text-2xl font-black tracking-tight text-zinc-950 truncate drop-shadow-sm">
+                      {/* FIXED: Dynamic Scaling for PKR Amounts */}
+                      <p className="text-[17px] sm:text-xl lg:text-2xl font-black tracking-tight text-zinc-950 drop-shadow-sm leading-tight break-words">
                         PKR {p.whole}
-                        <span className="text-zinc-700 font-bold text-sm sm:text-base">.{p.dec}</span>
+                        <span className="text-zinc-700 font-bold text-sm lg:text-lg">.{p.dec}</span>
                       </p>
-                      <p className="text-[9px] sm:text-[11px] font-black text-[#8A210F] mt-1.5 sm:mt-2 bg-white/50 border border-white/40 shadow-sm inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                      <p className="text-[9px] sm:text-[11px] font-black text-[#8A210F] mt-1.5 sm:mt-2 bg-white/50 border border-white/40 shadow-sm inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg break-words max-w-full">
                         ↗ {pct}% of spending
                       </p>
                     </div>
@@ -737,21 +701,23 @@ export default function Dashboard({ userId }: { userId: string }) {
             )}
           </div>
 
+          {/* BUBBLE CHART */}
           {chartData.length > 0 && (
             <div className="rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-2xl border border-white/20">
               <p className="text-[10px] sm:text-xs uppercase tracking-widest text-white/90 font-black mb-4 sm:mb-5 drop-shadow-sm text-center sm:text-left">
                 Category Share
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                {chartData.slice(0, 4).map((item, idx) => {
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8">
+                {chartData.slice(0, 4).map((item) => {
                   const pct = totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
-                  const sizes = ['w-20 h-20 sm:w-28 sm:h-28', 'w-16 h-16 sm:w-24 sm:h-24', 'w-16 h-16 sm:w-24 sm:h-24', 'w-14 h-14 sm:w-20 sm:h-20'];
+                  // FIXED: Uniform aspect-square sizing so bubbles are perfect circles
                   return (
-                    <div key={item.name} className={`${sizes[idx] || 'w-16 h-16 sm:w-24 sm:h-24'} rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center text-center p-1 sm:p-2 shadow-inner`}>
-                      <span className="text-[8px] sm:text-[11px] font-bold text-white line-clamp-1 px-1 tracking-widest uppercase drop-shadow-md">
-                        {getCategoryEmoji(item.name)} {item.name}
+                    <div key={item.name} className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 aspect-square rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center text-center p-2 shadow-inner shrink-0">
+                      <span className="text-xl sm:text-2xl lg:text-3xl drop-shadow-md mb-1">{getCategoryEmoji(item.name)}</span>
+                      <span className="text-[8px] sm:text-[9px] lg:text-[10px] font-bold text-white line-clamp-2 leading-tight px-1 tracking-widest uppercase drop-shadow-md w-full text-center break-words">
+                        {item.name}
                       </span>
-                      <span className="text-xs sm:text-sm font-black text-white mt-0.5 sm:mt-1 drop-shadow-md">{pct}%</span>
+                      <span className="text-xs sm:text-sm lg:text-base font-black text-white mt-1 drop-shadow-md">{pct}%</span>
                     </div>
                   );
                 })}
