@@ -67,8 +67,9 @@ export default function LoginPage() {
     setToast((prev) => ({ ...prev, visible: false }));
 
     try {
+      // FIXED: Hardcoded to production URL & routes through the secure Auth Callback
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/update-password`,
+        redirectTo: `https://expense-tracker-tjv1-smibrahimali.vercel.app/auth/callback?next=/update-password`,
       });
       if (error) throw error;
       showToast('Password reset link sent! Please check your email.', 'success');
