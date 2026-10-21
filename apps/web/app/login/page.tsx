@@ -67,9 +67,10 @@ export default function LoginPage() {
     setToast((prev) => ({ ...prev, visible: false }));
 
     try {
-      // FIXED: Hardcoded to production URL & routes through the secure Auth Callback
+      // FIXED: Sending directly to the update page so the frontend can read the #access_token hash!
+      // Using window.location.origin makes this perfectly work on BOTH localhost and Vercel.
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `https://expense-tracker-tjv1-smibrahimali.vercel.app/auth/callback?next=/update-password`,
+        redirectTo: `${window.location.origin}/update-password`,
       });
       if (error) throw error;
       showToast('Password reset link sent! Please check your email.', 'success');
@@ -115,8 +116,6 @@ export default function LoginPage() {
       <div className="w-full max-w-md backdrop-blur-3xl bg-white/30 border border-white/40 shadow-2xl rounded-[36px] p-8 sm:p-10">
         
         <div className="flex flex-col items-center gap-4 mb-8">
-          
-          {/* NEW CUSTOM CALCULATOR LOGO */}
           <div className="w-16 h-16 rounded-[20px] bg-zinc-950 flex items-center justify-center shadow-2xl border border-zinc-800 relative overflow-hidden shrink-0">
             <div className="absolute inset-0 bg-gradient-to-br from-[#F38636]/20 to-[#6B0F06]/20 opacity-60"></div>
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">
@@ -133,7 +132,6 @@ export default function LoginPage() {
               <path d="M14.5 14.5c-.8 0-1.5.3-1.5 1s.7 1 1.5 1 1.5.3 1.5 1-.7 1-1.5 1" stroke="#F38636" strokeWidth="1.5"></path>
             </svg>
           </div>
-
           <h1 className="font-black text-2xl tracking-tight text-zinc-950 drop-shadow-sm">ExpenseFlow</h1>
         </div>
 
