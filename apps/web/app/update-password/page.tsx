@@ -12,21 +12,32 @@ export default function UpdatePasswordPage() {
   const supabase = createClient();
 
   useEffect(() => {
-    // This catches the token hash from the email link and sets the active session
-    const handleAuthSession = async () => {
-      const hash = window.location.hash;
-      if (hash && hash.includes('type=recovery')) {
-        // Supabase browser client automatically parses hash tokens on initialization,
-        // but we can also explicitly check or wait for the session here.
-      }
-      
-      const { data, error } = await supabase.auth.getSession();
-      if (!data.session) {
-        setError('Auth session missing! Please request a new password reset link.');
+    const establishSession = async () => {
+      // 1. Check if Supabase sent a secure PKCE code in the URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+
+      if (code) {
+        // 2. Securely exchange the code for an active session directly in the browser
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) {
+          setError('Failed to verify link: ' + exchangeError.message);
+        } else {
+          // 3. Clean up the URL so the code disappears and the address bar looks clean
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      } else {
+        // 4. Fallback: check if they already have an active session (e.g. they just refreshed the page)
+        const { data } = await supabase.auth.getSession();
+        
+        // Also check for legacy hash fragments just in case
+        if (!data.session && !window.location.hash.includes('type=recovery')) {
+          setError('Auth session missing! Please request a new password reset link.');
+        }
       }
     };
 
-    handleAuthSession();
+    establishSession();
   }, [supabase]);
 
   const handleUpdate = async (e: React.FormEvent) => {
