@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '../../utils/client';
 import { useRouter } from 'next/navigation';
 
@@ -11,13 +11,30 @@ export default function UpdatePasswordPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  useEffect(() => {
+    // This catches the token hash from the email link and sets the active session
+    const handleAuthSession = async () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        // Supabase browser client automatically parses hash tokens on initialization,
+        // but we can also explicitly check or wait for the session here.
+      }
+      
+      const { data, error } = await supabase.auth.getSession();
+      if (!data.session) {
+        setError('Auth session missing! Please request a new password reset link.');
+      }
+    };
+
+    handleAuthSession();
+  }, [supabase]);
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     
     try {
-      // Securely update the password for the currently authenticated user
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       
