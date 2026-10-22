@@ -11,20 +11,19 @@ export default function ChatLogger({ userId, onExpenseAdded }: { userId: string;
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  // Extracted core send logic so both the form and our new buttons can use it
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
 
-    const userMessage = input;
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setMessages(prev => [...prev, { role: 'user', content: text }]);
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/chat-logger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage, sessionId, userId }),
+        body: JSON.stringify({ message: text, sessionId, userId }),
       });
 
       const data = await response.json();
@@ -39,7 +38,6 @@ export default function ChatLogger({ userId, onExpenseAdded }: { userId: string;
         setSessionId(data.sessionId);
       } else {
         setSessionId(null); 
-        // Trigger dashboard refresh if expense was successfully logged
         if (onExpenseAdded) onExpenseAdded();
       }
     } catch (error: any) {
@@ -47,6 +45,11 @@ export default function ChatLogger({ userId, onExpenseAdded }: { userId: string;
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(input);
   };
 
   return (
@@ -63,7 +66,37 @@ export default function ChatLogger({ userId, onExpenseAdded }: { userId: string;
                 ? 'bg-zinc-950 text-white rounded-br-sm' 
                 : 'bg-white/60 border border-white/50 text-zinc-900 rounded-bl-sm'
             }`}>
-              {msg.content}
+              
+              {/* Smart Message Parser */}
+              {msg.content.split('\n').map((line, lineIdx) => {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) return null;
+
+                // Detect if the line is an option like "A) pizza..."
+                const isOption = /^[A-H]\)/.test(trimmedLine);
+                
+                if (isOption && msg.role === 'ai') {
+                  const letter = trimmedLine.charAt(0);
+                  return (
+                    <button
+                      key={lineIdx}
+                      onClick={() => sendMessage(letter)}
+                      disabled={isLoading}
+                      className="block w-full text-left mt-2 p-2.5 bg-white/40 hover:bg-white/80 border border-white/50 rounded-xl transition-all shadow-sm active:scale-[0.98] cursor-pointer text-zinc-900 font-bold text-[13px] disabled:opacity-50"
+                    >
+                      {trimmedLine}
+                    </button>
+                  );
+                }
+
+                // Regular text rendering
+                return (
+                  <span key={lineIdx} className={lineIdx > 0 ? "block mt-2" : "block"}>
+                    {trimmedLine}
+                  </span>
+                );
+              })}
+
             </div>
           </div>
         ))}
