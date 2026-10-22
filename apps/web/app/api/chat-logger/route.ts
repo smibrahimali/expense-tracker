@@ -24,12 +24,12 @@ export async function POST(req: Request) {
       if (data) existingDraft = data;
     }
 
-    // FIXED: Added an explicit rule for agreements ("yes", "ok") so it asks for the expense instead of blocking
+    // FIXED: Added an explicit rule to handle emotional/personal queries with empathy
     const { text } = await generateText({
       model: groq('qwen/qwen3.8-27b'), 
       maxRetries: 0, 
       maxOutputTokens: 200,
-      prompt: `Today:${today}.Draft(item:${existingDraft.item},amount:${existingDraft.amount},date:${existingDraft.date}).Msg:"${message}". If msg is a greeting, return {"is_expense":false,"reply":"Hello! Ready to log an expense?"}. If msg is an agreement (yes, ok, sure, let's go), return {"is_expense":false,"reply":"Great! What did you buy and how much was it?"}. If msg is purely off-topic, return {"is_expense":false,"reply":"🤖 I am strictly an expense logging bot."}. If msg shows intent to log, has financial info, OR is a time expression (e.g. 'yesterday'), return {"is_expense":true,"item":string|null,"amount":number|null,"date":string|null,"category":string|null}. CRITICAL: Leave date as null UNLESS explicitly mentioned. Categories: ${PREDEFINED_CATEGORIES.join(',')}. Output ONLY valid JSON.`
+      prompt: `Today:${today}.Draft(item:${existingDraft.item},amount:${existingDraft.amount},date:${existingDraft.date}).Msg:"${message}". If msg expresses sadness, stress, or personal feelings, return {"is_expense":false,"reply":"I'm really sorry to hear you're feeling that way. Take your time, and I'll be right here whenever you need to log an expense."}. If msg is a greeting, return {"is_expense":false,"reply":"Hello! Ready to log an expense?"}. If msg is an agreement (yes, ok, sure), return {"is_expense":false,"reply":"Great! What did you buy and how much was it?"}. If msg is purely off-topic, return {"is_expense":false,"reply":"🤖 I am strictly an expense logging bot and can only help with finances."}. If msg shows intent to log, has financial info, OR is a time expression, return {"is_expense":true,"item":string|null,"amount":number|null,"date":string|null,"category":string|null}. CRITICAL: Leave date as null UNLESS explicitly mentioned. Categories: ${PREDEFINED_CATEGORIES.join(',')}. Output ONLY valid JSON.`
     });
 
     let extractedData;
