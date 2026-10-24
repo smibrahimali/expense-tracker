@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     const { message, sessionId, userId } = await req.json();
     const cleanMsg = message.trim();
     const lowerMsg = cleanMsg.toLowerCase();
+    const normalizedMsg = lowerMsg.replace(/[.!?]/g, '').trim();
     const today = new Date().toISOString().split('T')[0];
 
     // 1. Fetch existing draft session
@@ -52,13 +53,11 @@ export async function POST(req: Request) {
       promptDraftItem = null;
     }
 
-    // --- FAST-PATH 1: DETERMINISTIC CANCEL / UNSELECT / ABORT ---
-    const isCancel = /^(cancel|stop|nevermind|never mind|reset|exit|quit|unselect|unselect it|back)$/i.test(lowerMsg) ||
-      lowerMsg.includes("don't want to edit") ||
-      lowerMsg.includes("dont want to edit") ||
-      lowerMsg.includes("do not want to edit") ||
-      lowerMsg.includes("don't want to log") ||
-      lowerMsg.includes("dont want to log");
+    // --- FAST-PATH 1: CANCEL / UNSELECT / ABORT ---
+    const isCancel = /^(cancel|stop|nevermind|never mind|reset|exit|quit|unselect|unselect it|back)$/i.test(normalizedMsg) ||
+      normalizedMsg.includes("don't want to edit") ||
+      normalizedMsg.includes("dont want to edit") ||
+      normalizedMsg.includes("do not want to delete");
 
     if (isCancel) {
       if (sessionId) {
@@ -71,8 +70,13 @@ export async function POST(req: Request) {
       });
     }
 
-    // --- FAST-PATH 2: EXPLICIT START/RESTART OF EDIT OR VIEW FLOW ---
-    const isPureEditOrViewStart = /^(edit|edit expense|edit an expense|i want to edit|i want to edit an expense|i want to edit expense|lets edit|lets edit expense|let's edit expense|change expense|modify expense|show expenses|view expenses|tell me what were the expenses|what were the expenses|what did i spend)$/i.test(lowerMsg);
+    // --- FAST-PATH 2: EXPLICIT START OF EDIT OR DELETE FLOW ---
+    let isPureEditOrViewStart = /^(edit|edit expense|delete|delete expense|i want to edit|i want to delete|i want to edit an expense|i want to delete an expense|lets edit|show expenses|view expenses|tell me what were the expenses|what were the expenses)$/i.test(normalizedMsg);
+
+    // FIXED: If the user says "delete" but already has an option (like A) selected, DO NOT restart the flow!
+    if (isPureEditOrViewStart && normalizedMsg === 'delete' && editState?.selected) {
+      isPureEditOrViewStart = false; 
+    }
 
     if (isPureEditOrViewStart) {
       const freshState = 'EDIT_STATE:' + JSON.stringify({ step: 'WAIT_DATE', map: {}, details: {}, selected: null });
@@ -86,14 +90,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ 
         status: 'incomplete', 
         sessionId: newSessionId, 
-        message: "Sure! Which date's expenses would you like to view or edit? (e.g., '20 October', 'yesterday', or 'today')" 
+        message: "Sure! Which date's expenses would you like to view, edit, or delete? (e.g., '20 October' or 'today')" 
       });
     }
 
-    // 3. Call Groq LLM for Natural Language & Date/Entity Extraction
+    // 3. Call Groq LLM
     const modeContext = editState 
       ? `EDIT_MODE (Step:${editState.step}, Selected:${editState.selected || 'none'}, Date:${existingDraft.date || 'none'})` 
-      : `CREATE_MODE (Draft item:${promptDraftItem}, amount:${existingDraft.amount}, date:${existingDraft.date})`;
+      : `CREATE_MODE`;
 
     const { text } = await generateText({
       model: groq('qwen/qwen3.8-27b'), 
@@ -102,87 +106,84 @@ export async function POST(req: Request) {
       prompt: `Today:${today}. Context:${modeContext}. UserMsg:"${cleanMsg}".
 Classify intent into ONE of: "chat", "create", "edit", "delete".
 Rules:
-1. "delete": User wants to delete/remove an expense (e.g., "delete option A", "delete A", "remove it"). Extract edit_selection ("A"-"H") if mentioned.
-2. "edit": User wants to edit/view/list past expenses, OR Context starts with EDIT_MODE and user provides a date, option letter (A-H), or new item/amount/date. Extract edit_selection ("A"-"H"), item, amount, date(YYYY-MM-DD), category.
-3. "chat": Greetings ("hi","hello"), feelings ("feeling low"), or off-topic questions ("weather"). Write a warm, natural 'reply':
-   - If greeting: "Hi there! 👋 Tell me what you spent to log an expense, or say 'edit expense' to modify past entries."
-   - If feeling low/sad/stressed: "I'm really sorry you're feeling down today. Take a breather—your well-being comes first. I'll be right here whenever you're ready."
-   - If off-topic: "I can only help with tracking, viewing, or editing your expenses! Tell me what you bought or ask to edit a date."
-4. "create": User is logging a new expense. Extract item (noun only), amount (number), date (YYYY-MM-DD, null unless explicitly stated), category (${PREDEFINED_CATEGORIES.join(',')}).
-Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|null,"amount":number|null,"date":string|null,"category":string|null,"edit_selection":string|null,"reply":string|null}`
+1. "delete": User wants to delete an expense. Extract edit_selection ("A"-"H").
+2. "edit": User wants to view/edit expenses, OR Context is EDIT_MODE and user provides a date, option letter, or new values.
+3. If user provides ONLY a date (e.g. "20 October", "yesterday"), intent="edit", extract date.
+4. "chat": Greetings, feelings, or off-topic.
+5. "create": User is logging a new expense. Extract item, amount, date(YYYY-MM-DD), category.
+CRITICAL: Output ONLY valid JSON. All strings MUST be enclosed in double quotes. 
+Example format: {"intent":"delete","item":null,"amount":null,"date":null,"category":null,"edit_selection":null,"reply":null}`
     });
 
     let extractedData;
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("No JSON object found");
-      extractedData = JSON.parse(jsonMatch[0]);
+      
+      let rawJson = jsonMatch[0];
+      rawJson = rawJson.replace(/:\s*([A-Za-z]+)(,|\s*\})/g, ':"$1"$2'); 
+      
+      extractedData = JSON.parse(rawJson);
+
+      for (const key in extractedData) {
+        if (extractedData[key] === "null" || extractedData[key] === "NaN" || extractedData[key] === "") {
+          extractedData[key] = null;
+        }
+      }
     } catch (parseError) {
       throw new Error(`LLM returned invalid JSON. Raw output: ${text}`);
     }
 
-    // --- DETERMINISTIC OVERRIDES (Prevents LLM State Confusion) ---
-    // Override A: Check if user explicitly typed a single letter A-H while a list is active
-    if (editState && Object.keys(editState.map).length > 0 && /^[A-H]$/i.test(cleanMsg)) {
+    // --- DETERMINISTIC OVERRIDES ---
+    if (editState && Object.keys(editState.map).length > 0 && /^[A-H]$/i.test(normalizedMsg)) {
       extractedData.intent = 'edit';
-      extractedData.edit_selection = cleanMsg.toUpperCase();
+      extractedData.edit_selection = normalizedMsg.toUpperCase();
+      extractedData.item = null;
+      extractedData.amount = null;
+      extractedData.date = null;
+      extractedData.category = null;
     }
 
-    // Override B: Check if user asked to delete via keywords
-    const deleteMatch = cleanMsg.match(/\b(?:delete|remove|erase)\b(?:\s+option)?(?:\s+([A-H]))?/i);
+    const deleteMatch = normalizedMsg.match(/\b(?:delete|remove|erase)\b(?:\s+option)?(?:\s+([A-H]))?/i);
     if (deleteMatch && editState) {
       extractedData.intent = 'delete';
       if (deleteMatch[1]) extractedData.edit_selection = deleteMatch[1].toUpperCase();
     }
 
-    // Override C: If we are in EDIT_MODE and user provided a date (e.g., "20 oct") or new value ("800"), NEVER let it fall into 'create'
     if (editState && extractedData.intent === 'create') {
-      extractedData.intent = 'edit';
-    }
-
-    // Override D: If user asks "what were the expenses" or "show expenses" with a date
-    if (/\b(what were|show|list|view)\b.*\b(expense|expenses)\b/i.test(lowerMsg)) {
       extractedData.intent = 'edit';
     }
 
     // --- BRANCH 1: HANDLE CHAT INTENT ---
     if (extractedData.intent === 'chat') {
       let chatReply = extractedData.reply || "Hi! Tell me what you spent to log an expense, or say 'edit expense' to modify past entries.";
-      // If they were in the middle of editing an option, gently remind them without being robotic
       if (editState?.selected) {
         chatReply += `\n\n(Note: Option ${editState.selected} is still selected for editing. Tell me the new amount/item when ready, or say 'cancel' to stop.)`;
       }
-      return NextResponse.json({ 
-        status: 'incomplete', 
-        sessionId: sessionId, 
-        message: chatReply 
-      });
+      return NextResponse.json({ status: 'incomplete', sessionId: sessionId, message: chatReply });
     }
 
     // --- BRANCH 2: HANDLE DELETE INTENT ---
     if (extractedData.intent === 'delete') {
       const targetLetter = (extractedData.edit_selection || editState?.selected || '').toUpperCase();
-      if (!editState || !targetLetter || !editState.map[targetLetter]) {
+      
+      if (editState && targetLetter && editState.map[targetLetter]) {
+        const targetId = editState.map[targetLetter];
+        const itemDesc = editState.details?.[targetLetter] || `Option ${targetLetter}`;
+
+        const { error: delError } = await supabase.from('expenses').delete().eq('id', targetId).eq('user_id', userId);
+        if (delError) throw new Error(delError.message);
+
+        if (sessionId) await supabase.from('expense_drafts').delete().eq('session_id', sessionId);
+
         return NextResponse.json({
-          status: 'incomplete',
-          sessionId: sessionId,
-          message: "Which expense would you like to delete? Please tell me the date first (e.g., 'edit 20 October') and then pick an option A–H to delete."
+          status: 'complete',
+          sessionId: null,
+          message: `🗑️ Successfully deleted ${targetLetter}: ${itemDesc}!`
         });
       }
 
-      const targetId = editState.map[targetLetter];
-      const itemDesc = editState.details?.[targetLetter] || `Option ${targetLetter}`;
-
-      const { error: delError } = await supabase.from('expenses').delete().eq('id', targetId).eq('user_id', userId);
-      if (delError) throw new Error(delError.message);
-
-      if (sessionId) await supabase.from('expense_drafts').delete().eq('session_id', sessionId);
-
-      return NextResponse.json({
-        status: 'complete',
-        sessionId: null,
-        message: `🗑️ Successfully deleted ${targetLetter}) ${itemDesc}!`
-      });
+      extractedData.intent = 'edit';
     }
 
     // --- BRANCH 3: HANDLE EDIT / VIEW INTENT ---
@@ -190,14 +191,11 @@ Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|
       const newlySelectedLetter = extractedData.edit_selection ? extractedData.edit_selection.toUpperCase() : null;
       const activeLetter = newlySelectedLetter || (editState?.selected ? editState.selected.toUpperCase() : null);
 
-      // Case A: User has a valid option letter (A-H) from the active map
       if (editState && activeLetter && editState.map[activeLetter]) {
         const targetId = editState.map[activeLetter];
-        // Only count date as a "new value" if we were ALREADY in WAIT_CHANGES (so the lookup date isn't mistaken for a change)
         const isDateChange = editState.step === 'WAIT_CHANGES' && extractedData.date !== null;
         const hasNewValues = extractedData.item !== null || extractedData.amount !== null || isDateChange || extractedData.category !== null;
 
-        // If they just clicked/typed "A" (or haven't provided new values yet)
         if (!hasNewValues) {
           editState.selected = activeLetter;
           editState.step = 'WAIT_CHANGES';
@@ -209,11 +207,10 @@ Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|
           return NextResponse.json({ 
             status: 'incomplete', 
             sessionId: sessionId, 
-            message: `Got it, **${activeLetter}) ${desc}** selected!\nWhat would you like to change its item, amount, or date to?\n(e.g., '800', 'burger for 600', 'delete', or 'cancel')` 
+            message: `✅ Selected ${activeLetter}: ${desc}\nType your new amount or item, or simply say 'delete' or 'cancel'.` 
           });
         }
 
-        // They provided new values! Update the expense in Supabase
         const { data: exp } = await supabase.from('expenses').select('*').eq('id', targetId).single();
         if (!exp) throw new Error("Original expense not found.");
 
@@ -241,7 +238,6 @@ Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|
         });
       }
 
-      // Case B: Need a date to fetch the expenses list
       const targetDate = extractedData.date || existingDraft.date;
       if (!targetDate) {
         const waitDateState = 'EDIT_STATE:' + JSON.stringify({ step: 'WAIT_DATE', map: {}, details: {}, selected: null });
@@ -255,11 +251,10 @@ Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|
         return NextResponse.json({ 
           status: 'incomplete', 
           sessionId: newSessionId, 
-          message: "Sure! What date is the expense you want to view or edit? (e.g., '20 October' or 'yesterday')" 
+          message: "Sure! What date is the expense you want to find? (e.g., '20 October' or 'today')" 
         });
       }
 
-      // Case C: We have a date! Fetch expenses for that date and build the A-H clickable list
       const { data: expensesList } = await supabase
         .from('expenses')
         .select('*')
@@ -271,7 +266,7 @@ Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|
         return NextResponse.json({ 
           status: 'incomplete', 
           sessionId: sessionId, 
-          message: `I couldn't find any expenses logged on ${targetDate}. Try another date (e.g., '20 October'), or say 'cancel' to exit.` 
+          message: `I couldn't find any expenses logged on ${targetDate}. Try another date, or say 'cancel' to exit.` 
         });
       }
 
@@ -288,7 +283,7 @@ Output ONLY valid JSON: {"intent":"chat"|"create"|"edit"|"delete","item":string|
         return `${label}) ${labelTitle}`;
       });
 
-      const responseMsg = `📅 Expenses on ${targetDate}:\n${options.join('\n')}\nClick an option above to select it, or reply like 'Change A to 600' or 'Delete A'.`;
+      const responseMsg = `📅 Expenses on ${targetDate}:\n${options.join('\n')}\nClick an option above to select it, or reply like 'Delete A'.`;
 
       const newStateStr = 'EDIT_STATE:' + JSON.stringify({ step: 'WAIT_SELECTION', map: newMap, details: newDetails, selected: null });
       let newSessionId = sessionId;
