@@ -6,26 +6,38 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error('Not authenticated');
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const token = session?.access_token;
-  const userId = session?.user?.id; // Grab the user's UUID here
+
+  if (!token) {
+    throw new Error('Missing access token');
+  }
 
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(userId ? { 'x-user-id': userId } : {}), // Pass it to match the backend controller
+    Authorization: `Bearer ${token}`,
   };
 
-  // Maps to the required /api/v1 NestJS prefix
   const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1${endpoint}`;
 
   const response = await fetch(url, { ...options, headers });
-  
+
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.message || `API returned status: ${response.status}`);
   }
-  
+
   return response.json();
 }

@@ -1,87 +1,63 @@
 'use client';
+
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '../../utils/client';
-import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { MessageSquare, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
 import {
   ComposedChart,
   Bar,
   Line,
   XAxis,
+  YAxis,
   Tooltip,
   ResponsiveContainer,
+  Cell,
+  CartesianGrid,
 } from 'recharts';
-import ChatLogger from './ChatLogger'; // <-- Imported AI Logger
-
-const todayLocal = () => {
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${now.getFullYear()}-${month}-${day}`;
-};
-
-// --- PRE-DEFINED BROAD CATEGORIES ---
-const PREDEFINED_CATEGORIES = [
-  "Housing",
-  "Food",
-  "Transportation",
-  "Utilities",
-  "Health",
-  "Shopping",
-  "Entertainment",
-  "Education",
-  "Personal",
-  "Other"
-];
-
-// --- SMART EMOJI HELPERS ---
-const getCategoryEmoji = (name: string) => {
-  if (!name) return '🏷️';
-  const lower = name.toLowerCase();
-  if (lower.includes('education') || lower.includes('school') || lower.includes('college') || lower.includes('uni')) return '🎓';
-  if (lower.includes('food') || lower.includes('burger') || lower.includes('eat') || lower.includes('restaurant') || lower.includes('dine')) return '🍔';
-  if (lower.includes('grocer') || lower.includes('mart') || lower.includes('supermarket')) return '🛒';
-  if (lower.includes('coffee') || lower.includes('cafe') || lower.includes('tea')) return '☕';
-  if (lower.includes('petrol') || lower.includes('fuel') || lower.includes('gas')) return '⛽';
-  if (lower.includes('transportation') || lower.includes('car') || lower.includes('vehicle') || lower.includes('taxi') || lower.includes('uber')) return '🚗';
-  if (lower.includes('travel') || lower.includes('flight') || lower.includes('trip')) return '✈️';
-  if (lower.includes('utilit') || lower.includes('bill') || lower.includes('electric') || lower.includes('internet')) return '⚡';
-  if (lower.includes('housing') || lower.includes('rent') || lower.includes('house') || lower.includes('home')) return '🏠';
-  if (lower.includes('health') || lower.includes('med') || lower.includes('doctor') || lower.includes('pharmacy')) return '💊';
-  if (lower.includes('sport') || lower.includes('gym') || lower.includes('fitness') || lower.includes('padel')) return '🎾';
-  if (lower.includes('shop') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('shoes')) return '🛍️';
-  if (lower.includes('sub') || lower.includes('software') || lower.includes('app') || lower.includes('tech')) return '💻';
-  if (lower.includes('entertainment') || lower.includes('movie') || lower.includes('cinema') || lower.includes('netflix') || lower.includes('game')) return '🍿';
-  if (lower.includes('gift') || lower.includes('charity') || lower.includes('donation')) return '🎁';
-  if (lower.includes('personal') || lower.includes('grooming') || lower.includes('salon')) return '✂️';
-  return '🏷️';
-};
-
-const getPaymentEmoji = (method: string) => {
-  if (method === 'cash') return '💵 Cash';
-  if (method === 'card') return '💳 Card';
-  if (method === 'bank') return '🏦 Bank';
-  return method;
-};
+import { createClient } from '../../utils/client';
+import { PREDEFINED_CATEGORIES, getCategoryColor, mergeCategoryNames } from '../../utils/categories';
+import { formatAmount, formatMoney, abbreviateAmount } from '../../utils/money';
+import { parseAmountToMinorUnits } from '../../utils/money-parser';
+import { formatDisplayDate, todayLocal } from '../../utils/format';
+import ChatLogger from './ChatLogger';
+import AppShell from './AppShell';
+import {
+  Button,
+  Input,
+  Select,
+  Card,
+  CardHeader,
+  CardBody,
+  Dialog,
+  EmptyState,
+  StatCard,
+  PageHeader,
+  CategoryTile,
+  PaymentBadge,
+  Money,
+} from './ui';
 
 export default function Dashboard({ userId }: { userId: string }) {
   const [expenses, setExpenses] = useState<any[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([...PREDEFINED_CATEGORIES]);
+  const [loading, setLoading] = useState(true);
 
-  // Salary State
   const [salary, setSalary] = useState<number>(0);
   const [salariesMap, setSalariesMap] = useState<Record<string, number>>({});
   const [totalHistoricalSalary, setTotalHistoricalSalary] = useState<number>(0);
   const [isEditingSalary, setIsEditingSalary] = useState(false);
   const [salaryInput, setSalaryInput] = useState('');
+  const [savingSalary, setSavingSalary] = useState(false);
+  const [salaryError, setSalaryError] = useState<string | null>(null);
 
-  // Add Expense State
   const [amount, setAmount] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(PREDEFINED_CATEGORIES[0]);
+  const [selectedCategory, setSelectedCategory] = useState<string>(PREDEFINED_CATEGORIES[0]);
   const [note, setNote] = useState('');
   const [expenseDate, setExpenseDate] = useState(todayLocal());
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [adding, setAdding] = useState(false);
 
-  // Warning Modal State
   const [pendingExpense, setPendingExpense] = useState<{
     amountMinor: number;
     categoryId: string;
@@ -89,54 +65,37 @@ export default function Dashboard({ userId }: { userId: string }) {
     note: string;
     paymentMethod: string;
   } | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
-  // Edit Expense State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editPaymentMethod, setEditPaymentMethod] = useState('cash');
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // UI & Menu States
-  const [showCategoryForm, setShowCategoryForm] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showAiChat, setShowAiChat] = useState(false);
   const [userEmail, setUserEmail] = useState('');
-  const [showAiChat, setShowAiChat] = useState(false); // <-- AI Chat Toggle State
-
   const [timeFilter, setTimeFilter] = useState<'all' | 'month'>('month');
   const [formError, setFormError] = useState<string | null>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
-  
+  const salaryBusyRef = useRef(false);
+  const addBusyRef = useRef(false);
+  const refreshSeqRef = useRef(0);
+
   const supabase = createClient();
-  const router = useRouter();
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  };
-
-  const formatMoney = (val: number) => {
-    return val.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  };
-
-  const splitMoney = (val: number) => {
-    const abs = Math.abs(val);
-    const formatted = abs.toLocaleString('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    return { sign: val < 0 ? '-' : '', whole: formatted };
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    const datePart = dateStr.split('T')[0];
-    const [y, m, d] = datePart.split('-');
-    return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'short', year: 'numeric',
-    });
+  const parseMajorToMinor = (raw: string): number | null => {
+    try {
+      const cleaned = raw.trim().replace(/,/g, '');
+      if (!cleaned) return null;
+      const minor = parseAmountToMinorUnits(cleaned);
+      if (!Number.isSafeInteger(minor) || minor <= 0 || minor > 100_000_000_000) return null;
+      return minor;
+    } catch {
+      return null;
+    }
   };
 
   useEffect(() => {
@@ -147,159 +106,291 @@ export default function Dashboard({ userId }: { userId: string }) {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
-    supabase.from('monthly_salaries').select('month, amount_minor').eq('user_id', userId).then(({ data }) => {
-      if (data) {
+    Promise.all([
+      supabase.from('monthly_salaries').select('month, amount_minor').eq('user_id', userId),
+      supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', userId)
+        .order('spent_on', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('categories')
+        .select('name')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true }),
+    ]).then(([salRes, expRes, catRes]) => {
+      if (salRes.data) {
         let currentSal = 0;
         let totalSal = 0;
         const sMap: Record<string, number> = {};
-        
-        data.forEach((item) => {
+        salRes.data.forEach((item) => {
           const val = item.amount_minor / 100;
           totalSal += val;
           sMap[item.month] = val;
           if (item.month === currentMonthStr) currentSal = val;
         });
-        
         setSalariesMap(sMap);
         setSalary(currentSal);
         setTotalHistoricalSalary(totalSal);
-      } else {
-        setSalary(0);
-        setTotalHistoricalSalary(0);
-        setSalariesMap({});
       }
-    });
-
-    supabase.from('expenses').select('*').eq('user_id', userId).order('spent_on', { ascending: false }).order('created_at', { ascending: false }).then(({ data, error }) => {
-      if (error) {
-        console.error('Failed to fetch expenses:', error);
+      if (expRes.error) {
+        console.error('Failed to fetch expenses:', expRes.error);
         setExpenses([]);
-        return;
+      } else {
+        setExpenses(Array.isArray(expRes.data) ? expRes.data : []);
       }
-      setExpenses(Array.isArray(data) ? data : []);
+      const merged = mergeCategoryNames((catRes.data || []).map((c) => c.name));
+      setCategoryOptions(merged);
+      setSelectedCategory((prev) => (merged.includes(prev) ? prev : merged[0]));
+      setLoading(false);
     });
   }, [userId, supabase]);
 
-  // Refresh expenses when AI logs a new one (Optional trigger helper)
   const refreshExpenses = async () => {
-    const { data } = await supabase.from('expenses').select('*').eq('user_id', userId).order('spent_on', { ascending: false }).order('created_at', { ascending: false });
+    const seq = ++refreshSeqRef.current;
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .order('spent_on', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (seq !== refreshSeqRef.current) return;
+    if (error) {
+      toast.error('Could not refresh expenses');
+      return;
+    }
     if (data) setExpenses(data);
   };
 
   const handleSaveSalary = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (salaryBusyRef.current) return;
+    setSalaryError(null);
     setFormError(null);
-
-    const amountMinor = Math.round(parseFloat(salaryInput) * 100);
-    if (!Number.isFinite(amountMinor) || amountMinor < 0) {
-      setFormError('Enter a valid salary amount (0 or more).');
+    let amountMinor: number;
+    try {
+      const cleaned = salaryInput.trim().replace(/,/g, '');
+      if (!cleaned) {
+        setSalaryError('Enter a salary greater than 0.');
+        return;
+      }
+      amountMinor = parseAmountToMinorUnits(cleaned);
+    } catch {
+      setSalaryError('Enter a valid salary (e.g. 150000 or 150000.50).');
       return;
     }
-
-    const now = new Date();
-    const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
-    const { data: existing } = await supabase.from('monthly_salaries').select('id').eq('user_id', userId).eq('month', currentMonthStr).single();
-
-    if (existing) {
-      const { error } = await supabase.from('monthly_salaries').update({ amount_minor: amountMinor }).eq('id', existing.id);
-      if (error) { setFormError(error.message); return; }
-    } else {
-      const { error } = await supabase.from('monthly_salaries').insert([{ user_id: userId, month: currentMonthStr, amount_minor: amountMinor }]);
-      if (error) { setFormError(error.message); return; }
+    if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
+      setSalaryError('Salary must be greater than 0.');
+      return;
     }
+    salaryBusyRef.current = true;
+    setSavingSalary(true);
+    try {
+      const now = new Date();
+      const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const { error } = await supabase.from('monthly_salaries').upsert(
+        {
+          user_id: userId,
+          month: currentMonthStr,
+          amount_minor: amountMinor,
+        },
+        { onConflict: 'user_id,month' }
+      );
+      if (error) {
+        setSalaryError(error.message);
+        return;
+      }
 
-    const newSalaryVal = amountMinor / 100;
-    const difference = newSalaryVal - salary;
-    setTotalHistoricalSalary((prev) => prev + difference);
-    setSalary(newSalaryVal);
-    setSalariesMap(prev => ({ ...prev, [currentMonthStr]: newSalaryVal }));
-    setIsEditingSalary(false);
+      const newSalaryVal = amountMinor / 100;
+      setSalariesMap((prev) => {
+        const next = { ...prev, [currentMonthStr]: newSalaryVal };
+        setTotalHistoricalSalary(Object.values(next).reduce((s, v) => s + v, 0));
+        return next;
+      });
+      setSalary(newSalaryVal);
+      setIsEditingSalary(false);
+      toast.success('Salary updated');
+    } finally {
+      salaryBusyRef.current = false;
+      setSavingSalary(false);
+    }
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-
-    if (!selectedCategory) { setFormError('Select a category first.'); return; }
-
-    const amountMinor = Math.round(parseFloat(amount) * 100);
-    if (!Number.isFinite(amountMinor) || amountMinor <= 0) { setFormError('Enter an amount greater than 0.'); return; }
-
+    if (!selectedCategory) {
+      setFormError('Select a category first.');
+      return;
+    }
+    if (!expenseDate || expenseDate > todayLocal()) {
+      setFormError('Pick a date that is today or earlier.');
+      return;
+    }
+    const amountMinor = parseMajorToMinor(amount);
+    if (amountMinor === null) {
+      setFormError('Enter an amount greater than 0 (max 2 decimals).');
+      return;
+    }
+    const trimmedNote = note.trim().slice(0, 140);
     const amountMajor = amountMinor / 100;
     if (salary > 0 && amountMajor >= salary * 0.3) {
-      setPendingExpense({ amountMinor, categoryId: selectedCategory, expenseDate, note, paymentMethod });
-      return; 
+      setDialogError(null);
+      setPendingExpense({
+        amountMinor,
+        categoryId: selectedCategory,
+        expenseDate,
+        note: trimmedNote,
+        paymentMethod,
+      });
+      return;
     }
-
-    await executeAddExpense(amountMinor, selectedCategory, expenseDate, note, paymentMethod);
+    await executeAddExpense(amountMinor, selectedCategory, expenseDate, trimmedNote, paymentMethod);
   };
 
-  const executeAddExpense = async (amtMinor: number, catId: string, date: string, n: string, pMethod: string) => {
-    const { data: newExpense, error } = await supabase.from('expenses').insert([{
-      user_id: userId, category_id: catId, amount_minor: amtMinor, spent_on: date, note: n || null, payment_method: pMethod,
-    }]).select().single();
+  const executeAddExpense = async (
+    amtMinor: number,
+    catId: string,
+    date: string,
+    n: string,
+    pMethod: string
+  ) => {
+    if (addBusyRef.current) return;
+    addBusyRef.current = true;
+    setAdding(true);
+    setDialogError(null);
+    try {
+      const { data: newExpense, error } = await supabase
+        .from('expenses')
+        .insert([
+          {
+            user_id: userId,
+            category_id: catId,
+            amount_minor: amtMinor,
+            spent_on: date,
+            note: n || null,
+            payment_method: pMethod,
+          },
+        ])
+        .select()
+        .single();
 
-    if (error || !newExpense) { setFormError(error?.message || 'Failed to add expense.'); return; }
+      if (error || !newExpense) {
+        const msg = error?.message || 'Failed to add expense.';
+        if (pendingExpense) setDialogError(msg);
+        else setFormError(msg);
+        return;
+      }
 
-    setExpenses([newExpense, ...expenses]);
-    setAmount('');
-    setNote('');
-    setPaymentMethod('cash');
-    setExpenseDate(todayLocal());
-    setPendingExpense(null); 
+      setExpenses((prev) => [newExpense, ...prev]);
+      setAmount('');
+      setNote('');
+      setPaymentMethod('cash');
+      setExpenseDate(todayLocal());
+      setPendingExpense(null);
+      setDialogError(null);
+      toast.success('Expense added');
+      requestAnimationFrame(() => amountInputRef.current?.focus());
+    } finally {
+      addBusyRef.current = false;
+      setAdding(false);
+    }
   };
 
   const handleDeleteExpense = async (id: string) => {
-    const previous = expenses;
-    setExpenses(expenses.filter((exp) => exp.id !== id));
-    const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', userId);
-    if (error) { setExpenses(previous); setFormError(error.message); }
+    setExpenses((prev) => {
+      const previous = prev;
+      const next = prev.filter((exp) => exp.id !== id);
+      void (async () => {
+        const { error } = await supabase.from('expenses').delete().eq('id', id).eq('user_id', userId);
+        if (error) {
+          setExpenses(previous);
+          toast.error(error.message);
+        } else {
+          toast.success('Expense deleted');
+        }
+      })();
+      return next;
+    });
+    setDeleteConfirmId(null);
   };
 
   const handleEditClick = (exp: any) => {
+    setFormError(null);
     setEditingId(exp.id);
     setEditAmount((exp.amount_minor / 100).toString());
-    setEditCategory(exp.category_id || PREDEFINED_CATEGORIES[0]);
+    setEditCategory(exp.category_id || categoryOptions[0] || PREDEFINED_CATEGORIES[0]);
     setEditNote(exp.note || '');
     setEditDate(exp.spent_on);
     setEditPaymentMethod(exp.payment_method || 'cash');
   };
 
   const handleSaveEdit = async (id: string) => {
-    const amountMinor = Math.round(parseFloat(editAmount) * 100);
-    if (!Number.isFinite(amountMinor) || amountMinor <= 0) { setFormError('Enter an amount greater than 0.'); return; }
+    setFormError(null);
+    const amountMinor = parseMajorToMinor(editAmount);
+    if (amountMinor === null) {
+      toast.error('Enter an amount greater than 0.');
+      return;
+    }
+    if (!editDate || editDate > todayLocal()) {
+      toast.error('Pick a date that is today or earlier.');
+      return;
+    }
+    const trimmedNote = editNote.trim().slice(0, 140);
+    const { data: updatedExpense, error } = await supabase
+      .from('expenses')
+      .update({
+        category_id: editCategory,
+        amount_minor: amountMinor,
+        note: trimmedNote || null,
+        spent_on: editDate,
+        payment_method: editPaymentMethod,
+      })
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
 
-    const { data: updatedExpense, error } = await supabase.from('expenses').update({
-      category_id: editCategory, amount_minor: amountMinor, note: editNote || null, spent_on: editDate, payment_method: editPaymentMethod,
-    }).eq('id', id).eq('user_id', userId).select().single();
-
-    if (error || !updatedExpense) { setFormError(error?.message || 'Failed to update expense.'); return; }
-
-    setExpenses(expenses.map((exp) => (exp.id === id ? { ...exp, ...updatedExpense } : exp)));
+    if (error || !updatedExpense) {
+      toast.error(error?.message || 'Failed to update expense.');
+      return;
+    }
+    setExpenses((prev) => prev.map((exp) => (exp.id === id ? { ...exp, ...updatedExpense } : exp)));
     setEditingId(null);
+    toast.success('Expense updated');
   };
+
+  const currentMonthKey = (() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  })();
 
   const filteredExpenses = expenses.filter((exp) => {
     if (timeFilter === 'all') return true;
-    const expDate = new Date(exp.spent_on);
-    const today = new Date();
-    return expDate.getMonth() === today.getMonth() && expDate.getFullYear() === today.getFullYear();
+    return String(exp.spent_on || '').slice(0, 7) === currentMonthKey;
   });
 
   const totalSpent = filteredExpenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
-  const remaining = salary - totalSpent;
-  const percentUsed = salary > 0 ? ((totalSpent / salary) * 100).toFixed(1) : null;
-
   const totalAllTimeSpent = expenses.reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
   const totalSavings = totalHistoricalSalary - totalAllTimeSpent;
+  const salarySet = salary > 0;
+  // All-time: compare spend to historical salary; month: this month's salary
+  const remainingBase = timeFilter === 'all' ? totalHistoricalSalary : salary;
+  const remainingSpend = timeFilter === 'all' ? totalAllTimeSpent : totalSpent;
+  const remaining = remainingBase - remainingSpend;
+  const percentUsed =
+    remainingBase > 0 ? (remainingSpend / remainingBase) * 100 : null;
 
-  const expensesByCategory = filteredExpenses.reduce((acc, exp) => {
-    const catName = exp.category_id || 'Other'; 
-    const amountVal = exp.amount_minor / 100;
-    acc[catName] = (acc[catName] || 0) + amountVal;
-    return acc;
-  }, {} as Record<string, number>);
+  const expensesByCategory = filteredExpenses.reduce(
+    (acc, exp) => {
+      const catName = exp.category_id || 'Other';
+      const amountVal = exp.amount_minor / 100;
+      acc[catName] = (acc[catName] || 0) + amountVal;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   const chartData = Object.entries(expensesByCategory)
     .map(([name, value]) => ({ name, value: Number(value) }))
@@ -310,445 +401,693 @@ export default function Dashboard({ userId }: { userId: string }) {
   for (let i = 5; i >= 0; i--) {
     const targetMonth = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const monthLabel = targetMonth.toLocaleDateString('en-GB', { month: 'short' });
-    const fullMonthLabel = targetMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-    
+    const fullMonthLabel = targetMonth.toLocaleDateString('en-GB', {
+      month: 'long',
+      year: 'numeric',
+    });
     const targetMonthStr = `${targetMonth.getFullYear()}-${String(targetMonth.getMonth() + 1).padStart(2, '0')}-01`;
     const monthSalary = salariesMap[targetMonthStr] || 0;
+    const monthKey = targetMonthStr.slice(0, 7);
+    const monthTotal =
+      expenses
+        .filter((exp) => String(exp.spent_on || '').slice(0, 7) === monthKey)
+        .reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
 
-    const monthTotal = expenses.filter((exp) => {
-      const expDate = new Date(exp.spent_on);
-      return expDate.getMonth() === targetMonth.getMonth() && expDate.getFullYear() === targetMonth.getFullYear();
-    }).reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+    const prevIdx = i + 1;
+    let prevTotal = 0;
+    if (prevIdx <= 5) {
+      const prevMonth = new Date(now.getFullYear(), now.getMonth() - prevIdx, 1);
+      const prevKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
+      prevTotal =
+        expenses
+          .filter((exp) => String(exp.spent_on || '').slice(0, 7) === prevKey)
+          .reduce((sum, exp) => sum + (exp.amount_minor || 0), 0) / 100;
+    }
 
-    const monthRemaining = monthSalary > 0 ? monthSalary - monthTotal : 0;
+    const monthRemaining = monthSalary > 0 ? monthSalary - monthTotal : null;
 
-    trendData.push({ month: monthLabel, fullMonthLabel, amount: monthTotal, remaining: monthRemaining });
+    trendData.push({
+      month: monthLabel,
+      fullMonthLabel,
+      amount: monthTotal,
+      remaining: monthRemaining,
+      change: monthTotal - prevTotal,
+      isCurrent: i === 0,
+      monthSalary,
+    });
   }
 
-  const spentSplit = splitMoney(totalSpent);
-  const remainingSplit = splitMoney(remaining);
-  const savingsSplit = splitMoney(totalSavings);
+  const monthHeading = now.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const stackedTotal = chartData.reduce((s, d) => s + d.value, 0);
+  const peakTrendAmount = Math.max(0, ...trendData.map((d) => d.amount));
 
   return (
-    <div 
-      className="w-full max-w-6xl mx-auto my-4 sm:my-8 px-4 sm:px-8 text-zinc-900 relative" 
-      style={{ backgroundColor: 'transparent' }}
-    >
-      {/* WARNING MODAL OVERLAY */}
-      {pendingExpense && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white/95 backdrop-blur-3xl border border-white/50 shadow-2xl rounded-[32px] p-8 max-w-sm w-full text-center">
-            <div className="w-16 h-16 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner border border-red-100">
-              ⚠️
-            </div>
-            <h3 className="text-xl font-black text-zinc-950 mb-2">High Expense Warning</h3>
-            <p className="text-sm font-semibold text-zinc-600 mb-8 leading-relaxed">
-              This expense of <strong className="text-zinc-950">PKR {formatMoney(pendingExpense.amountMinor / 100)}</strong> is <strong className="text-red-600 border-b border-red-200 pb-0.5">over 30%</strong> of your monthly salary. Are you sure you want to log it?
-            </p>
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setPendingExpense(null)} 
-                className="flex-1 bg-white border border-zinc-200 text-zinc-800 py-3.5 rounded-xl font-bold shadow-sm hover:bg-zinc-50 transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={() => executeAddExpense(pendingExpense.amountMinor, pendingExpense.categoryId, pendingExpense.expenseDate, pendingExpense.note, pendingExpense.paymentMethod)} 
-                className="flex-1 bg-gradient-to-br from-[#B42910] to-[#D92D20] text-white py-3.5 rounded-xl font-black shadow-lg transition-all cursor-pointer hover:opacity-90"
-              >
-                Yes, log it
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Navigation Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-10">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-[14px] bg-zinc-950 flex items-center justify-center shadow-lg border border-zinc-800 relative overflow-hidden shrink-0">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#F38636]/20 to-[#6B0F06]/20 opacity-60"></div>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="relative z-10">
-              <rect x="3" y="3" width="14" height="18" rx="2" ry="2"></rect>
-              <rect x="6" y="6" width="8" height="3" rx="0.5" fill="rgba(255,255,255,0.2)" stroke="none"></rect>
-              <line x1="6" y1="12" x2="8" y2="12" strokeWidth="2"></line>
-              <line x1="10" y1="12" x2="12" y2="12" strokeWidth="2"></line>
-              <line x1="6" y1="15" x2="8" y2="15" strokeWidth="2"></line>
-              <line x1="10" y1="15" x2="12" y2="15" strokeWidth="2"></line>
-              <line x1="6" y1="18" x2="8" y2="18" strokeWidth="2"></line>
-              <circle cx="16" cy="16" r="6" fill="#09090b" stroke="#F38636" strokeWidth="2"></circle>
-              <line x1="20.24" y1="20.24" x2="23" y2="23" stroke="#F38636" strokeWidth="2.5"></line>
-              <path d="M16 13v6" stroke="#F38636" strokeWidth="1.5"></path>
-              <path d="M14.5 14.5c-.8 0-1.5.3-1.5 1s.7 1 1.5 1 1.5.3 1.5 1-.7 1-1.5 1" stroke="#F38636" strokeWidth="1.5"></path>
-            </svg>
-          </div>
-          <span className="font-bold text-xl tracking-tight text-white drop-shadow-md">ExpenseFlow</span>
-        </div>
-
-        <div className="backdrop-blur-2xl bg-white/30 p-1.5 rounded-full shadow-lg border border-white/40 inline-flex items-center gap-1 w-full sm:w-auto overflow-x-auto justify-start sm:justify-center">
-          <span className="bg-zinc-950 text-white px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold shadow-sm border border-zinc-800 flex items-center gap-2 whitespace-nowrap">
-            <span>🏠</span> Dashboard
-          </span>
-          <Link href="/transactions" className="text-zinc-900 hover:bg-white/50 px-5 py-2.5 rounded-full text-xs sm:text-sm font-bold transition-colors flex items-center gap-2 whitespace-nowrap">
-            <span>📜</span> Transactions
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <button 
-              onClick={() => setShowProfileMenu(!showProfileMenu)}
-              className="w-11 h-11 rounded-full bg-gradient-to-br from-[#6B0F06] to-[#F38636] text-white font-black text-sm flex items-center justify-center shadow-lg border border-orange-500/50 hover:scale-105 transition-transform cursor-pointer"
+    <AppShell email={userEmail}>
+      <Dialog
+        open={!!pendingExpense}
+        onClose={() => setPendingExpense(null)}
+        title="Confirm large expense"
+        description={
+          pendingExpense
+            ? `This expense of PKR ${formatAmount(pendingExpense.amountMinor / 100)} is over 30% of your monthly salary. Do you want to log it?`
+            : undefined
+        }
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => {
+                setPendingExpense(null);
+                setDialogError(null);
+              }}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </button>
-
-            {showProfileMenu && (
-              <div className="absolute right-0 mt-3 w-64 bg-white/95 backdrop-blur-3xl rounded-2xl shadow-2xl border border-zinc-200/80 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="px-5 py-4 border-b border-zinc-200/80">
-                  <p className="text-sm font-black text-zinc-900">Ibrahim Ali</p>
-                  <p className="text-xs font-semibold text-zinc-500 truncate mt-0.5">{userEmail || 'Loading...'}</p>
-                </div>
-                
-                <div className="py-1.5 border-t border-zinc-200/80 bg-red-50/30">
-                  <button onClick={handleSignOut} className="w-full flex items-center gap-3 px-5 py-3 text-sm font-black text-red-600 hover:bg-red-50 transition-colors cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                    Logout
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+              Cancel
+            </Button>
+            <Button
+              variant="accent"
+              className="flex-1"
+              loading={adding}
+              onClick={() =>
+                pendingExpense &&
+                executeAddExpense(
+                  pendingExpense.amountMinor,
+                  pendingExpense.categoryId,
+                  pendingExpense.expenseDate,
+                  pendingExpense.note,
+                  pendingExpense.paymentMethod
+                )
+              }
+            >
+              Log expense
+            </Button>
+          </>
+        }
+      >
+        <div className="w-10 h-10 rounded-full bg-[var(--ef-warning-muted)] text-[var(--ef-warning)] flex items-center justify-center mb-1">
+          <AlertTriangle size={18} strokeWidth={1.5} />
         </div>
-      </div>
+        {dialogError ? (
+          <p role="alert" className="text-xs text-[var(--ef-danger)] mt-3">
+            {dialogError}
+          </p>
+        ) : null}
+      </Dialog>
 
-      <div className="flex flex-col mb-8 text-center sm:text-left">
-        <p className="text-white/80 text-sm sm:text-base mb-1.5 font-semibold drop-shadow-md">
-          Take control of your finances with real-time insights
-        </p>
-        <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-white drop-shadow-xl">
-          Welcome Back!
-        </h1>
-      </div>
+      <Dialog
+        open={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        title="Delete expense?"
+        description="This cannot be undone."
+        footer={
+          <>
+            <Button variant="secondary" className="flex-1" onClick={() => setDeleteConfirmId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => deleteConfirmId && handleDeleteExpense(deleteConfirmId)}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      />
 
-      {/* Hero Dashboards */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
-        <div className="lg:col-span-7 rounded-[32px] p-5 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-2xl border border-white/20 flex flex-col justify-between min-h-[300px] sm:min-h-[370px]">
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-white/90 text-sm sm:text-base font-bold tracking-wide">📉 Overview</span>
-              <button onClick={() => setTimeFilter(timeFilter === 'month' ? 'all' : 'month')} className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-colors shadow-sm cursor-pointer">
-                <span>{timeFilter === 'month' ? 'This Month' : 'All Time'}</span>
-                <span className="text-[10px]">▼</span>
-              </button>
-            </div>
-            <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md flex items-end">
-              <span>PKR {spentSplit.whole}</span>
-            </div>
-            <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs text-white font-medium tracking-wide">
-              <span>↗ {percentUsed !== null ? `${percentUsed}%` : '0.0%'} this month</span>
-            </div>
+      <PageHeader
+        eyebrow={monthHeading}
+        title="Overview"
+        description="Spending, salary and savings — at a glance."
+        action={
+          <div className="flex items-center gap-1 p-0.5 rounded-[var(--ef-radius-sm)] bg-[var(--ef-gray-200)] border border-[var(--ef-border)]">
+            <button
+              type="button"
+              onClick={() => setTimeFilter('month')}
+              className={`px-3 h-8 rounded-[6px] text-xs font-medium transition-colors cursor-pointer ${
+                timeFilter === 'month'
+                  ? 'bg-[var(--ef-accent-muted)] text-[var(--ef-accent-warm)] shadow-[var(--ef-shadow-sm)]'
+                  : 'text-[var(--ef-muted)] hover:text-[var(--ef-ink)]'
+              }`}
+            >
+              This month
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeFilter('all')}
+              className={`px-3 h-8 rounded-[6px] text-xs font-medium transition-colors cursor-pointer ${
+                timeFilter === 'all'
+                  ? 'bg-[var(--ef-accent-muted)] text-[var(--ef-accent-warm)] shadow-[var(--ef-shadow-sm)]'
+                  : 'text-[var(--ef-muted)] hover:text-[var(--ef-ink)]'
+              }`}
+            >
+              All time
+            </button>
           </div>
-          <div className="h-32 sm:h-44 mt-6 sm:mt-8 -mx-2">
+        }
+      />
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <StatCard
+          label="💸 Total spent"
+          value={loading ? null : totalSpent}
+          empty={loading}
+          secondary={
+            percentUsed !== null ? (
+              <span className="tabular-nums">{percentUsed.toFixed(1)}% of salary used</span>
+            ) : (
+              <span>{totalSpent === 0 ? 'No expenses this period' : 'Salary not set yet'}</span>
+            )
+          }
+          progress={percentUsed}
+        />
+        <StatCard
+          label="🧾 Remaining"
+          value={
+            loading || (timeFilter === 'month' ? !salarySet : totalHistoricalSalary <= 0)
+              ? null
+              : remaining
+          }
+          empty={loading || (timeFilter === 'month' ? !salarySet : totalHistoricalSalary <= 0)}
+          secondary={
+            timeFilter === 'all' ? (
+              <span>All-time salary − spend</span>
+            ) : salarySet ? (
+              isEditingSalary ? (
+                <form onSubmit={handleSaveSalary} className="flex gap-2 items-center mt-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={salaryInput}
+                    onChange={(e) => setSalaryInput(e.target.value)}
+                    className="ef-input !h-8 !text-xs flex-1"
+                    placeholder="Salary"
+                    autoFocus
+                  />
+                  <Button type="submit" size="sm" variant="accent" loading={savingSalary}>
+                    Save
+                  </Button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSalaryError(null);
+                    setSalaryInput(salary > 0 ? salary.toString() : '');
+                    setIsEditingSalary(true);
+                  }}
+                  className="text-[var(--ef-gray-600)] hover:text-[var(--ef-accent-warm)] hover:underline font-medium cursor-pointer tabular-nums"
+                >
+                  Edit · PKR {formatAmount(salary)}
+                </button>
+              )
+            ) : (
+              <span>Needs a salary to calculate</span>
+            )
+          }
+        />
+        <StatCard
+          label="💼 Salary"
+          value={loading || !salarySet ? null : salary}
+          empty={loading || !salarySet}
+          secondary={
+            salarySet ? (
+              <span>This month</span>
+            ) : isEditingSalary ? (
+              <form onSubmit={handleSaveSalary} className="flex gap-2 items-center mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={salaryInput}
+                  onChange={(e) => setSalaryInput(e.target.value)}
+                  className="ef-input !h-8 !text-xs flex-1"
+                  placeholder="Amount"
+                  autoFocus
+                />
+                <Button type="submit" size="sm" variant="accent" loading={savingSalary}>
+                  Save
+                </Button>
+              </form>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                variant="accent"
+                onClick={() => {
+                  setSalaryError(null);
+                  setSalaryInput('');
+                  setIsEditingSalary(true);
+                }}
+              >
+                Set salary
+              </Button>
+            )
+          }
+        />
+        <StatCard
+          label="🏦 Savings"
+          value={loading ? null : totalSavings}
+          empty={loading}
+          secondary={<span>All-time salary − spend</span>}
+        />
+      </div>
+
+      {/* Trend chart */}
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium text-[var(--ef-ink)]">
+              <span className="ef-emoji mr-1.5" aria-hidden>
+                📈
+              </span>
+              Spending trend
+            </h2>
+            <p className="text-xs text-[var(--ef-muted)] mt-0.5">
+              Last 6 months · bars = spent, line = remaining
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0 pt-0.5">
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--ef-muted)]">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[var(--ef-accent-warm)]" aria-hidden />
+              Spent
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--ef-muted)]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--ef-success)]" aria-hidden />
+              Left
+            </span>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={trendData} barCategoryGap="22%">
-                <XAxis dataKey="month" stroke="rgba(255,255,255,0.9)" fontSize={10} tickLine={false} axisLine={false} fontWeight={600} />
+              <ComposedChart data={trendData} barCategoryGap="28%">
+                <CartesianGrid
+                  vertical={false}
+                  stroke="var(--ef-border-strong)"
+                  strokeDasharray="4 4"
+                />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fill: 'var(--ef-gray-600)', fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  tickFormatter={abbreviateAmount}
+                  tick={{ fill: 'var(--ef-gray-600)', fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={44}
+                />
                 <Tooltip
-                  cursor={{ fill: 'rgba(255,255,255,0.15)', radius: 8 }}
+                  cursor={{ fill: 'var(--ef-accent-muted)', radius: 6 }}
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const spent = Number(payload.find(p => p.dataKey === 'amount')?.value || 0);
-                      const remaining = Number(payload.find(p => p.dataKey === 'remaining')?.value || 0);
-                      const sp = splitMoney(spent);
-                      const rp = splitMoney(remaining);
-                      return (
-                        <div className="backdrop-blur-xl bg-white/95 text-zinc-900 px-4 sm:px-5 py-3 sm:py-4 rounded-2xl shadow-xl border border-white/50 min-w-[150px] sm:min-w-[180px]">
-                          <p className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-widest mb-2 sm:mb-3 border-b border-zinc-200/80 pb-2">
-                            {payload[0].payload.fullMonthLabel}
-                          </p>
-                          <div className="flex items-center justify-between gap-4 sm:gap-6 mb-2">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-sm bg-zinc-300" />
-                              <span className="text-[10px] sm:text-xs font-bold text-zinc-600">Spent</span>
-                            </div>
-                            <span className="font-black text-xs sm:text-sm text-zinc-900">
-                              PKR {sp.whole}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-4 sm:gap-6">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500" />
-                              <span className="text-[10px] sm:text-xs font-bold text-zinc-600">Left</span>
-                            </div>
-                            <span className="font-black text-xs sm:text-sm text-emerald-600">
-                              {rp.sign}PKR {rp.whole}
-                            </span>
-                          </div>
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload;
+                    const change = d.change as number;
+                    return (
+                      <div className="bg-[var(--ef-surface-elevated)] text-[var(--ef-ink)] px-3.5 py-2.5 rounded-[var(--ef-radius-sm)] shadow-[var(--ef-shadow-md)] border border-[var(--ef-border-strong)] min-w-[170px]">
+                        <p className="text-[11px] font-medium text-[var(--ef-muted)] mb-2 border-b border-[var(--ef-border)] pb-1.5">
+                          {d.fullMonthLabel}
+                        </p>
+                        <div className="flex items-center justify-between gap-4 mb-1.5">
+                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ef-muted)]">
+                            <span className="w-2 h-2 rounded-sm bg-[var(--ef-accent-warm)]" aria-hidden />
+                            Spent
+                          </span>
+                          <span className="text-sm font-semibold tabular-nums">
+                            PKR {formatAmount(d.amount)}
+                          </span>
                         </div>
-                      );
-                    }
-                    return null;
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--ef-muted)]">
+                            <span className="w-2 h-2 rounded-full bg-[var(--ef-success)]" aria-hidden />
+                            Left
+                          </span>
+                          <span
+                            className={`text-sm font-semibold tabular-nums ${
+                              d.remaining == null
+                                ? 'text-[var(--ef-muted)]'
+                                : d.remaining < 0
+                                  ? 'text-[var(--ef-danger)]'
+                                  : 'text-[var(--ef-success)]'
+                            }`}
+                          >
+                            {d.remaining == null
+                              ? '—'
+                              : formatMoney(d.remaining, { showSign: true })}
+                          </span>
+                        </div>
+                        {change !== 0 && (
+                          <p
+                            className={`text-xs mt-2 tabular-nums ${
+                              change > 0 ? 'text-[var(--ef-danger)]' : 'text-[var(--ef-success)]'
+                            }`}
+                          >
+                            {change > 0 ? '▲' : '▼'} PKR {formatAmount(Math.abs(change))} spend vs prior
+                          </p>
+                        )}
+                      </div>
+                    );
                   }}
                 />
-                <Bar dataKey="amount" fill="rgba(255, 255, 255, 0.9)" radius={[6, 6, 6, 6]} />
-                <Line type="monotone" dataKey="remaining" stroke="#10B981" strokeWidth={2.5} dot={{ r: 3, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 5 }} />
+                <Bar dataKey="amount" radius={[8, 8, 0, 0]} maxBarSize={40}>
+                  {trendData.map((entry, index) => {
+                    const isPeak =
+                      peakTrendAmount > 0 && entry.amount === peakTrendAmount && !entry.isCurrent;
+                    const fill = entry.isCurrent
+                      ? 'var(--ef-accent)'
+                      : isPeak
+                        ? 'var(--ef-accent-warm)'
+                        : 'var(--ef-gray-500)';
+                    return <Cell key={`cell-${index}`} fill={fill} />;
+                  })}
+                </Bar>
+                <Line
+                  type="monotone"
+                  dataKey="remaining"
+                  stroke="#34d399"
+                  strokeWidth={2.5}
+                  connectNulls={false}
+                  dot={{
+                    r: 3,
+                    fill: '#34d399',
+                    strokeWidth: 2,
+                    stroke: '#1c1a18',
+                  }}
+                  activeDot={{ r: 5, stroke: '#1c1a18', strokeWidth: 2 }}
+                />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </CardBody>
+      </Card>
 
-        <div className="lg:col-span-5 rounded-[32px] p-5 sm:p-8 text-white bg-gradient-to-b from-[#450704] via-[#B42910] to-[#F18535] shadow-2xl border border-white/20 flex flex-col justify-between min-h-[300px] sm:min-h-[370px]">
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-white/90 text-sm sm:text-base font-bold tracking-wide">💰 Balance & Salary</span>
-              <button onClick={() => { setSalaryInput(salary > 0 ? salary.toString() : ''); setIsEditingSalary(!isEditingSalary); }} className="bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 shadow-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-colors cursor-pointer">
-                {isEditingSalary ? 'Cancel' : 'Edit Salary'}
-              </button>
+      {/* Log expense */}
+      <Card className="mb-6">
+        <CardHeader>
+          <h2 className="text-sm font-medium text-[var(--ef-ink)]">
+            <span className="ef-emoji mr-1.5" aria-hidden>
+              ✍️
+            </span>
+            Log expense
+          </h2>
+          <p className="text-xs text-[var(--ef-muted)] mt-0.5">Date → amount → category → payment</p>
+        </CardHeader>
+        <CardBody>
+          <form
+            onSubmit={handleAddExpense}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+          >
+            <Input
+              label="Date"
+              type="date"
+              max={todayLocal()}
+              value={expenseDate}
+              onChange={(e) => setExpenseDate(e.target.value)}
+              required
+            />
+            <Input
+              ref={amountInputRef}
+              label="Amount (PKR)"
+              type="number"
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              placeholder="0.00"
+            />
+            <Select
+              label="Category"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </Select>
+            <Select
+              label="Payment"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="bank">Bank</option>
+            </Select>
+            <Input
+              label="Note"
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional"
+              maxLength={140}
+            />
+            {salaryError ? (
+              <p role="alert" className="text-xs text-[var(--ef-danger)] sm:col-span-2 lg:col-span-3">
+                {salaryError}
+              </p>
+            ) : null}
+            <div className="flex items-end">
+              <Button type="submit" variant="accent" className="w-full" loading={adding}>
+                Add expense
+              </Button>
             </div>
-            {isEditingSalary ? (
-              <form onSubmit={handleSaveSalary} className="flex gap-2 items-center my-3">
-                <input type="number" step="0.01" min="0" value={salaryInput} onChange={(e) => setSalaryInput(e.target.value)} className="w-full px-4 sm:px-5 py-2.5 sm:py-3 bg-black/30 backdrop-blur-md text-white placeholder-white/60 rounded-full text-sm font-bold outline-none border border-white/30 shadow-inner" placeholder="Monthly Salary (PKR)" autoFocus />
-                <button type="submit" className="bg-white text-zinc-950 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full text-sm font-black hover:bg-zinc-100 transition-colors shrink-0 shadow-lg cursor-pointer">Save</button>
-              </form>
-            ) : (
-              <div className="text-3xl sm:text-6xl font-black tracking-tight mb-4 drop-shadow-md flex items-end">
-                <span>{remainingSplit.sign}PKR {remainingSplit.whole}</span>
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-6">
-              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs font-medium tracking-wide">
-                <span>↗ {percentUsed !== null ? `${percentUsed}% used` : 'Set Salary'}</span>
-              </div>
-              <div className="inline-flex items-center gap-1 bg-white/15 backdrop-blur-md border border-white/20 shadow-sm rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs font-medium tracking-wide">
-                <span>Salary: PKR {formatMoney(salary)}</span>
-              </div>
-            </div>
-          </div>
-          <div className="relative pt-6 mt-auto">
-            <div className="mx-4 sm:mx-6 h-2 sm:h-3 rounded-t-2xl sm:rounded-t-3xl bg-white/15 backdrop-blur-md border-t border-x border-white/30" />
-            <div className="mx-2 sm:mx-3 h-2 sm:h-3 rounded-t-2xl sm:rounded-t-3xl bg-white/25 backdrop-blur-md border-t border-x border-white/40" />
-            <div className="p-4 sm:p-6 rounded-[20px] sm:rounded-[24px] bg-white/30 backdrop-blur-2xl border border-white/50 flex items-center justify-between shadow-inner">
-              <div>
-                <p className="text-[10px] sm:text-xs font-bold text-white/90 tracking-widest uppercase mb-0.5 sm:mb-1">
-                  🏦 SAVED &nbsp; {String(now.getMonth() + 1).padStart(2, '0')} / {String(now.getFullYear()).slice(-2)}
-                </p>
-                <p className="text-lg sm:text-2xl font-black text-white drop-shadow-sm">
-                  {savingsSplit.sign}PKR {savingsSplit.whole}
-                </p>
-              </div>
-              <span className="text-lg sm:text-2xl font-black tracking-widest italic text-white/90 drop-shadow-sm">VISA</span>
-            </div>
-          </div>
-        </div>
-      </div>
+          </form>
+          {formError && (
+            <p
+              role="alert"
+              className="text-[var(--ef-danger)] bg-[var(--ef-danger-muted)] px-3 py-2 rounded-[var(--ef-radius-sm)] text-xs mt-3 font-medium"
+            >
+              {formError}
+            </p>
+          )}
+        </CardBody>
+      </Card>
 
-      {/* Log New Expense Bar */}
-      <div className="backdrop-blur-3xl bg-white/30 p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-white/40 shadow-2xl mb-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6 px-1">
-          <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 drop-shadow-sm">Log New Expense</h3>
-        </div>
-        <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-6 gap-3">
-          <input type="date" max={todayLocal()} value={expenseDate} onChange={(e) => setExpenseDate(e.target.value)} required className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 [color-scheme:light] cursor-pointer transition-all" />
-          <input ref={amountInputRef} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (PKR)" required className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 transition-all" />
-          <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)} className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 cursor-pointer transition-all">
-            {PREDEFINED_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>{getCategoryEmoji(cat)} {cat}</option>
-            ))}
-          </select>
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 cursor-pointer transition-all">
-            <option value="cash">💵 Cash</option>
-            <option value="card">💳 Card</option>
-            <option value="bank">🏦 Bank Transfer</option>
-          </select>
-          <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Note (optional)" className="px-4 py-3 sm:py-3.5 rounded-xl bg-white/60 text-zinc-900 placeholder:text-zinc-600 font-bold w-full text-sm outline-none border border-white/40 shadow-sm focus:bg-white/80 focus:ring-2 focus:ring-orange-500/30 transition-all" />
-          <button type="submit" className="bg-zinc-950 hover:bg-zinc-800 text-white px-6 py-3 sm:py-3.5 rounded-xl font-black text-sm w-full transition-colors cursor-pointer shadow-xl border border-zinc-800">
-            ➕ Add
-          </button>
-        </form>
-        {formError && <p className="text-red-800 bg-red-100/80 px-4 py-2 rounded-lg text-xs mt-4 font-bold border border-red-200">{formError}</p>}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* RECENT TRANSACTIONS CONTAINER */}
-        <div className="lg:col-span-7 backdrop-blur-3xl bg-white/30 p-5 sm:p-8 rounded-[24px] sm:rounded-[32px] border border-white/40 shadow-2xl overflow-hidden w-full">
-          <div className="flex justify-between items-center mb-5 sm:mb-6">
-            <h3 className="text-sm sm:text-base font-black text-zinc-900 drop-shadow-sm uppercase tracking-wider">Recent Transactions</h3>
-            <Link href="/transactions" className="text-xs font-bold text-zinc-900 hover:bg-white/80 transition-colors border border-white/50 bg-white/50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl shadow-sm">
-              View All
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        {/* Recent transactions */}
+        <Card className="lg:col-span-7 overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <h2 className="text-sm font-medium text-[var(--ef-ink)]">
+              <span className="ef-emoji mr-1.5" aria-hidden>
+                🧾
+              </span>
+              Recent transactions
+            </h2>
+            <Link
+              href="/transactions"
+              className="text-xs font-medium text-[var(--ef-accent-warm)] hover:text-[#ffb06a] transition-colors"
+            >
+              View all →
             </Link>
-          </div>
-
-          {Array.isArray(filteredExpenses) && filteredExpenses.length > 0 ? (
-            <div className="space-y-3">
-              {filteredExpenses.slice(0, 5).map((exp) => {
-                const catName = exp.category_id || 'Other';
-                const catEmoji = getCategoryEmoji(catName);
-
-                return (
-                  <div key={exp.id} className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4 bg-white/50 p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-sm border border-white/40 hover:bg-white/70 transition-all w-full">
-                    
-                    {/* EDIT STATE */}
-                    {editingId === exp.id ? (
-                      <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                        <input type="date" max={todayLocal()} value={editDate} onChange={(e) => setEditDate(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
-                        <input type="number" step="0.01" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" />
-                        <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
-                          {PREDEFINED_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-                        </select>
-                        <select value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30">
-                          <option value="cash">Cash</option><option value="card">Card</option><option value="bank">Bank</option>
-                        </select>
-                        <input type="text" value={editNote} onChange={(e) => setEditNote(e.target.value)} className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/80 text-zinc-900 font-bold w-full text-[10px] sm:text-xs border border-white/50 focus:border-orange-500 focus:ring-1 focus:ring-orange-500/30" placeholder="Note" />
-                        <div className="flex gap-2 w-full">
-                          <button onClick={() => handleSaveEdit(exp.id)} className="flex-1 bg-zinc-950 text-white px-2 py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold shadow-sm cursor-pointer">Save</button>
-                          <button onClick={() => setEditingId(null)} className="flex-1 bg-white/60 border border-white/50 text-zinc-900 px-2 py-1.5 rounded-lg sm:rounded-xl text-[10px] sm:text-xs font-bold shadow-sm hover:bg-white/80 cursor-pointer">Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* NORMAL STATE - LEFT COLUMN (Icon, Title, Date) */}
-                        <div className="flex items-center gap-3 sm:gap-4 w-full md:flex-1 min-w-0">
-                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-[12px] sm:rounded-[16px] bg-white/60 border border-white/50 shadow-inner flex items-center justify-center text-lg sm:text-xl shrink-0">
-                            {catEmoji}
+          </CardHeader>
+          <CardBody className="!pt-0">
+            {filteredExpenses.length > 0 ? (
+              <ul className="divide-y divide-[var(--ef-border)]">
+                {filteredExpenses.slice(0, 5).map((exp) => {
+                  const catName = exp.category_id || 'Other';
+                  return (
+                    <li key={exp.id} className="py-3 first:pt-0 group">
+                      {editingId === exp.id ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          <Input
+                            type="date"
+                            max={todayLocal()}
+                            value={editDate}
+                            onChange={(e) => setEditDate(e.target.value)}
+                            className="!h-8 !text-xs"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                            className="!h-8 !text-xs"
+                          />
+                          <Select
+                            value={editCategory}
+                            onChange={(e) => setEditCategory(e.target.value)}
+                            className="!h-8 !text-xs"
+                          >
+                            {categoryOptions.map((cat) => (
+                              <option key={cat} value={cat}>
+                                {cat}
+                              </option>
+                            ))}
+                          </Select>
+                          <Select
+                            value={editPaymentMethod}
+                            onChange={(e) => setEditPaymentMethod(e.target.value)}
+                            className="!h-8 !text-xs"
+                          >
+                            <option value="cash">Cash</option>
+                            <option value="card">Card</option>
+                            <option value="bank">Bank</option>
+                          </Select>
+                          <Input
+                            type="text"
+                            value={editNote}
+                            onChange={(e) => setEditNote(e.target.value)}
+                            placeholder="Note"
+                            className="!h-8 !text-xs"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" className="flex-1" onClick={() => handleSaveEdit(exp.id)}>
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="flex-1"
+                              onClick={() => setEditingId(null)}
+                            >
+                              Cancel
+                            </Button>
                           </div>
-                          <div className="flex flex-col min-w-0 flex-1">
-                            <p className="font-bold text-xs sm:text-sm text-zinc-950 tracking-wide break-words leading-tight">
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <CategoryTile name={catName} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-[var(--ef-gray-900)] truncate">
                               {exp.note || catName}
                             </p>
-                            <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 flex-wrap">
-                              <span className="text-[10px] sm:text-xs text-zinc-800 font-bold whitespace-nowrap">{formatDate(exp.spent_on)}</span>
-                              {exp.payment_method && (
-                                <span className="capitalize bg-white/80 border border-white/50 px-1.5 py-0.5 rounded-md text-[9px] sm:text-[10px] text-zinc-800 font-bold shadow-xs whitespace-nowrap">
-                                  {getPaymentEmoji(exp.payment_method)}
-                                </span>
-                              )}
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="text-xs text-[var(--ef-muted)]">
+                                {formatDisplayDate(exp.spent_on)}
+                              </span>
+                              <span className="text-xs text-[var(--ef-gray-400)]">·</span>
+                              <span className="text-xs text-[var(--ef-muted)]">{catName}</span>
+                              {exp.payment_method && <PaymentBadge method={exp.payment_method} />}
                             </div>
                           </div>
-                        </div>
-
-                        {/* NORMAL STATE - CENTER COLUMN (Category Pill) */}
-                        <div className="hidden md:flex md:flex-1 items-center justify-center border-l border-r border-white/30 px-2 min-w-0">
-                          <span className="px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm truncate max-w-full">
-                            {catName}
-                          </span>
-                        </div>
-
-                        {/* NORMAL STATE - RIGHT COLUMN (Amount, Actions) - FIXED OVERLAP */}
-                        <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto md:flex-1 mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-0 border-white/30 min-w-0 md:pl-6">
-                          
-                          <span className="md:hidden px-2 py-1 rounded-md text-[9px] font-bold bg-white/60 text-zinc-900 border border-white/50 shadow-sm truncate max-w-[90px] shrink-0">
-                            {catName}
-                          </span>
-
-                          <p className="font-black text-sm sm:text-base text-[#B42910] drop-shadow-sm ml-auto text-right leading-tight">
-                            -PKR {formatMoney(exp.amount_minor / 100)}
-                          </p>
-
-                          {/* DO NOT CHANGE DELETE SECTION AS REQUESTED */}
-                          <div className="flex gap-1 sm:gap-1.5 shrink-0 ml-1 sm:ml-2">
-                            <button onClick={() => handleEditClick(exp)} className="text-zinc-600 hover:text-zinc-950 transition-colors p-1.5 sm:p-2 bg-white/40 hover:bg-white/80 rounded-lg sm:rounded-xl border border-white/50 shadow-sm cursor-pointer" title="Edit expense">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                            </button>
-                            <button onClick={() => handleDeleteExpense(exp.id)} className="text-zinc-600 hover:text-red-700 transition-colors p-1.5 sm:p-2 bg-white/40 hover:bg-red-50 rounded-lg sm:rounded-xl border border-white/50 shadow-sm cursor-pointer" title="Delete expense">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" className="sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            </button>
+                          <Money value={exp.amount_minor / 100} showSign tone="expense" className="text-sm shrink-0" />
+                          <div className="flex gap-0.5 opacity-100 sm:opacity-60 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="!px-2"
+                              onClick={() => handleEditClick(exp)}
+                              aria-label="Edit expense"
+                            >
+                              <Pencil size={14} strokeWidth={1.5} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="!px-2 text-[var(--ef-danger)]"
+                              onClick={() => setDeleteConfirmId(exp.id)}
+                              aria-label="Delete expense"
+                            >
+                              <Trash2 size={14} strokeWidth={1.5} />
+                            </Button>
                           </div>
                         </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="bg-white/40 rounded-[16px] sm:rounded-[20px] border border-white/50 p-6 sm:p-8 text-center shadow-sm">
-              <p className="text-zinc-700 text-xs sm:text-sm font-bold">No expenses found for this period.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {chartData.length > 0 ? (
-              chartData.slice(0, 4).map((item) => {
-                const p = splitMoney(item.value);
-                const pct = totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
-
-                return (
-                  <div key={item.name} className="backdrop-blur-3xl bg-white/30 p-4 sm:p-5 lg:p-6 rounded-[20px] sm:rounded-[28px] shadow-xl border border-white/40 flex flex-col justify-between min-h-[120px] sm:min-h-[140px] hover:bg-white/40 transition-all overflow-hidden">
-                    <div className="flex items-center justify-between gap-1 sm:gap-2">
-                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-                        <span className="text-base sm:text-xl drop-shadow-sm shrink-0">{getCategoryEmoji(item.name)}</span>
-                        <span className="text-[10px] sm:text-xs lg:text-sm font-black text-zinc-900 truncate tracking-wide drop-shadow-sm uppercase">
-                          {item.name}
-                        </span>
-                      </div>
-                      <span className="text-zinc-700 text-[10px] sm:text-xs font-black shrink-0">↗</span>
-                    </div>
-                    <div className="mt-3 sm:mt-4">
-                      {/* FIXED: Dynamic Scaling for PKR Amounts */}
-                      <p className="text-[17px] sm:text-xl lg:text-2xl font-black tracking-tight text-zinc-950 drop-shadow-sm leading-tight break-words">
-                        PKR {p.whole}
-                      </p>
-                      <p className="text-[9px] sm:text-[11px] font-black text-[#8A210F] mt-1.5 sm:mt-2 bg-white/50 border border-white/40 shadow-sm inline-block px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg break-words max-w-full">
-                        ↗ {pct}% of spending
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="col-span-2 backdrop-blur-3xl bg-white/30 p-5 sm:p-6 rounded-[20px] sm:rounded-[28px] text-center text-zinc-800 text-xs sm:text-sm border border-white/40 shadow-xl font-bold">
-                Log expenses to see category cards
-              </div>
-            )}
-          </div>
-
-          {/* BUBBLE CHART */}
-          {chartData.length > 0 && (
-            <div className="rounded-[24px] sm:rounded-[32px] p-5 sm:p-8 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white shadow-2xl border border-white/20">
-              <p className="text-[10px] sm:text-xs uppercase tracking-widest text-white/90 font-black mb-4 sm:mb-5 drop-shadow-sm text-center sm:text-left">
-                Category Share
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8">
-                {chartData.slice(0, 4).map((item) => {
-                  const pct = totalSpent > 0 ? ((item.value / totalSpent) * 100).toFixed(1) : '0.0';
-                  // FIXED: Uniform aspect-square sizing so bubbles are perfect circles
-                  return (
-                    <div key={item.name} className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 aspect-square rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex flex-col items-center justify-center text-center p-2 shadow-inner shrink-0">
-                      <span className="text-xl sm:text-2xl lg:text-3xl drop-shadow-md mb-1">{getCategoryEmoji(item.name)}</span>
-                      <span className="text-[8px] sm:text-[9px] lg:text-[10px] font-bold text-white line-clamp-2 leading-tight px-1 tracking-widest uppercase drop-shadow-md w-full text-center break-words">
-                        {item.name}
-                      </span>
-                      <span className="text-xs sm:text-sm lg:text-base font-black text-white mt-1 drop-shadow-md">{pct}%</span>
-                    </div>
+                      )}
+                    </li>
                   );
                 })}
-              </div>
-            </div>
-          )}
-        </div>
+              </ul>
+            ) : (
+              <EmptyState
+                emoji="📭"
+                title={timeFilter === 'month' ? 'No expenses this month' : 'No expenses yet'}
+                description={
+                  timeFilter === 'month'
+                    ? 'Nothing logged this month — add one above, or switch to All time.'
+                    : 'Add one above — it will show up here instantly.'
+                }
+              />
+            )}
+          </CardBody>
+        </Card>
+
+        {/* Category breakdown */}
+        <Card className="lg:col-span-5">
+          <CardHeader>
+            <h2 className="text-sm font-medium text-[var(--ef-ink)]">
+              <span className="ef-emoji mr-1.5" aria-hidden>
+                🏷️
+              </span>
+              Category breakdown
+            </h2>
+          </CardHeader>
+          <CardBody>
+            {chartData.length > 0 ? (
+              <>
+                {/* Stacked bar */}
+                <div className="h-3 rounded-full overflow-hidden flex bg-[var(--ef-gray-200)] mb-5">
+                  {chartData.map((item) => (
+                    <div
+                      key={item.name}
+                      className="h-full first:rounded-l-full last:rounded-r-full"
+                      style={{
+                        width: `${stackedTotal > 0 ? (item.value / stackedTotal) * 100 : 0}%`,
+                        backgroundColor: getCategoryColor(item.name),
+                      }}
+                      title={`${item.name}: ${((item.value / stackedTotal) * 100).toFixed(1)}%`}
+                    />
+                  ))}
+                </div>
+                <ul className="space-y-3">
+                  {chartData.slice(0, 6).map((item) => {
+                    const pct = stackedTotal > 0 ? (item.value / stackedTotal) * 100 : 0;
+                    return (
+                      <li key={item.name} className="flex items-center gap-3">
+                        <CategoryTile name={item.name} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-[var(--ef-gray-800)] truncate">
+                              {item.name}
+                            </span>
+                            <span className="text-xs font-medium text-[var(--ef-muted)] tabular-nums shrink-0">
+                              {pct.toFixed(1)}%
+                            </span>
+                          </div>
+                          <p className="text-xs text-[var(--ef-muted)] tabular-nums mt-0.5">
+                            PKR {formatAmount(item.value)}
+                          </p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            ) : (
+              <EmptyState
+                emoji="🗂️"
+                title="Nothing to break down"
+                description="Once you log expenses, shares by category appear here."
+              />
+            )}
+          </CardBody>
+        </Card>
       </div>
 
-      {/* Floating AI Logger Toggle Button */}
-      <button 
+      {/* AI logger — subdued */}
+      <button
+        type="button"
         onClick={() => setShowAiChat(!showAiChat)}
-        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-[#B42910] to-[#F18535] text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform z-50 border border-orange-400/50 cursor-pointer"
-        title="AI Quick Logger"
+        className="fixed bottom-20 md:bottom-6 right-4 sm:right-6 w-11 h-11 bg-[var(--ef-accent)] text-white rounded-full shadow-[var(--ef-shadow-md)] flex items-center justify-center hover:bg-[var(--ef-accent-hover)] transition-colors z-50 cursor-pointer"
+        aria-label={showAiChat ? 'Close AI logger' : 'Open AI quick logger'}
       >
-        <span className="text-2xl sm:text-3xl drop-shadow-md">{showAiChat ? '✖️' : '✨'}</span>
+        {showAiChat ? <X size={18} strokeWidth={1.5} /> : <MessageSquare size={18} strokeWidth={1.5} />}
       </button>
 
-      {/* Floating AI Chat Window - CORRECTLY INSIDE COMPONENT */}
-      {showAiChat && (
-        <div className="fixed bottom-24 right-6 sm:right-8 z-50 animate-in slide-in-from-bottom-4 fade-in duration-200">
-          <ChatLogger userId={userId} onExpenseAdded={refreshExpenses} />
-        </div>
-      )}
-    </div>
+      <div
+        className={`fixed bottom-36 md:bottom-20 right-4 sm:right-6 z-50 ef-animate-in ${
+          showAiChat ? '' : 'hidden'
+        }`}
+        aria-hidden={!showAiChat}
+      >
+        <ChatLogger onExpenseAdded={refreshExpenses} />
+      </div>
+    </AppShell>
   );
 }

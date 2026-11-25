@@ -24,7 +24,7 @@ async function bootstrap() {
       ];
       const isAllowed =
         allowed.includes(origin) ||
-        origin.endsWith('.vercel.app');
+        /^https:\/\/expense-tracker[\w-]*\.vercel\.app$/.test(origin);
       callback(null, isAllowed);
     },
     credentials: true,

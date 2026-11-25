@@ -1,31 +1,135 @@
 @import "tailwindcss";
 
+/* ─── Design tokens (ExpenseFlow — warm charcoal / amber) ─── */
 :root {
-  --background: #c83e14;
-  --foreground: #18181b;
+  /* Warm neutral scale (dark: 50 = deepest surface, 900 = lightest text) */
+  --ef-gray-50: #161412;
+  --ef-gray-100: #1c1a18;
+  --ef-gray-200: #2a2724;
+  --ef-gray-300: #3a3632;
+  --ef-gray-400: #5c554e;
+  --ef-gray-500: #8a8178;
+  --ef-gray-600: #b0a69c;
+  --ef-gray-700: #cfc5bb;
+  --ef-gray-800: #e8e0d8;
+  --ef-gray-900: #f5f0eb;
+  --ef-gray-950: #ffffff;
+
+  /* Brand accent — crimson → amber */
+  --ef-accent: #b42910;
+  --ef-accent-hover: #961f0c;
+  --ef-accent-warm: #f18535;
+  --ef-accent-muted: rgba(241, 133, 53, 0.14);
+  --ef-accent-ring: rgba(241, 133, 53, 0.35);
+
+  /* Semantic */
+  --ef-success: #34d399;
+  --ef-success-muted: rgba(52, 211, 153, 0.12);
+  --ef-danger: #f87171;
+  --ef-danger-muted: rgba(248, 113, 113, 0.12);
+  --ef-warning: #fbbf24;
+  --ef-warning-muted: rgba(251, 191, 36, 0.12);
+
+  /* Surfaces */
+  --ef-bg: #121110;
+  --ef-surface: #1c1a18;
+  --ef-surface-elevated: #242220;
+  --ef-ink: #f5f0eb;
+  --ef-muted: #a89f96;
+  --ef-border: #27272a;
+  --ef-border-strong: #3f3f46;
+
+  /* Radii — only 3 values */
+  --ef-radius-sm: 8px;
+  --ef-radius-md: 12px;
+  --ef-radius-lg: 16px;
+
+  /* Shadows — deep charcoal elevation */
+  --ef-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --ef-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.25);
+
+  /* Type */
+  --font-sans: var(--font-geist), "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-emoji: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+
+  /* Motion */
+  --ef-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ef-duration: 150ms;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--ef-bg);
+  --color-foreground: var(--ef-ink);
+  --color-ef-gray-50: var(--ef-gray-50);
+  --color-ef-gray-100: var(--ef-gray-100);
+  --color-ef-gray-200: var(--ef-gray-200);
+  --color-ef-gray-300: var(--ef-gray-300);
+  --color-ef-gray-400: var(--ef-gray-400);
+  --color-ef-gray-500: var(--ef-gray-500);
+  --color-ef-gray-600: var(--ef-gray-600);
+  --color-ef-gray-700: var(--ef-gray-700);
+  --color-ef-gray-800: var(--ef-gray-800);
+  --color-ef-gray-900: var(--ef-gray-900);
+  --color-ef-gray-950: var(--ef-gray-950);
+  --color-ef-accent: var(--ef-accent);
+  --color-ef-success: var(--ef-success);
+  --color-ef-danger: var(--ef-danger);
+  --color-ef-warning: var(--ef-warning);
+  --color-ef-border: var(--ef-border);
+  --color-ef-surface: var(--ef-surface);
+  --color-ef-muted: var(--ef-muted);
+  --font-sans: var(--font-geist);
+  --radius-sm: var(--ef-radius-sm);
+  --radius-md: var(--ef-radius-md);
+  --radius-lg: var(--ef-radius-lg);
+  --shadow-ef-sm: var(--ef-shadow-sm);
+  --shadow-ef-md: var(--ef-shadow-md);
+}
+
+html {
+  color-scheme: dark;
 }
 
 html,
 body {
-  background: linear-gradient(135deg, #5a0b05 0%, #b82b10 45%, #f18838 100%) !important;
-  background-attachment: fixed !important;
-  color: #18181b;
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   min-height: 100vh;
+  color: var(--ef-ink);
+  background-color: var(--ef-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 15% -5%, rgba(180, 41, 16, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(241, 133, 53, 0.12), transparent 50%);
+  background-attachment: fixed;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "tnum" 1;
 }
 
-body > div,
-body > main {
-  background-color: transparent !important;
+::selection {
+  background: var(--ef-accent-muted);
+  color: var(--ef-ink);
 }
 
+/* Tabular nums for currency */
+.tabular-nums,
+[data-money] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Emoji tile font */
+.ef-emoji {
+  font-family: var(--font-emoji);
+  line-height: 1;
+  font-style: normal;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid var(--ef-accent-warm);
+  outline-offset: 2px;
+}
+
+/* Inputs — hide number spinners */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -33,4 +137,112 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Minimal scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ef-gray-400) transparent;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Legacy class bridges (gradually replaced by components) */
+.ef-panel {
+  background: rgba(28, 26, 24, 0.85);
+  border: 1px solid var(--ef-border);
+  border-radius: var(--ef-radius-md);
+  box-shadow: var(--ef-shadow-sm);
+  backdrop-filter: blur(12px);
+}
+
+.ef-input {
+  width: 100%;
+  min-height: 44px;
+  height: 44px;
+  border-radius: var(--ef-radius-sm);
+  border: 1px solid var(--ef-border-strong);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0 12px;
+  font-size: 0.875rem;
+  font-weight: 450;
+  color: var(--ef-ink);
+  outline: none;
+  transition: border-color var(--ef-duration) var(--ef-ease), box-shadow var(--ef-duration) var(--ef-ease);
+}
+
+.ef-input::placeholder {
+  color: var(--ef-gray-500);
+}
+
+.ef-input:focus {
+  border-color: rgba(241, 133, 53, 0.5);
+  box-shadow: 0 0 0 3px rgba(180, 41, 16, 0.25);
+}
+
+.ef-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  height: 44px;
+  border-radius: var(--ef-radius-sm);
+  background: var(--ef-ink);
+  color: var(--ef-bg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0 1rem;
+  transition: opacity var(--ef-duration) var(--ef-ease), transform var(--ef-duration) var(--ef-ease);
+}
+
+.ef-btn-primary:hover {
+  opacity: 0.92;
+}
+
+.ef-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.ef-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  height: 44px;
+  border-radius: var(--ef-radius-sm);
+  background: var(--ef-accent);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0 1rem;
+  box-shadow: var(--ef-shadow-sm);
+  transition: background-color var(--ef-duration) var(--ef-ease), transform var(--ef-duration) var(--ef-ease);
+}
+
+.ef-btn-accent:hover {
+  background: var(--ef-accent-hover);
+}
+
+.ef-btn-accent:active {
+  transform: scale(0.98);
+}
+
+@keyframes ef-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ef-animate-in {
+  animation: ef-fade-in 180ms var(--ef-ease) both;
 }

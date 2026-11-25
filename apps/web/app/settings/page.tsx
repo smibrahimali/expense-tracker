@@ -1,215 +1,356 @@
-'use client';
+﻿'use client';
+
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { toast } from 'sonner';
+import { Pencil, Trash2 } from 'lucide-react';
 import { createClient } from '../../utils/client';
+import { getCategoryColor } from '../../utils/categories';
+import AppShell from '../components/AppShell';
+import {
+  Button,
+  Input,
+  Card,
+  Dialog,
+  EmptyState,
+  PageHeader,
+  CategoryTile,
+  RowSkeleton,
+} from '../components/ui';
 
-const getCategoryEmoji = (name: string) => {
-  const lower = name.toLowerCase();
-  
-  // Education
-  if (lower.includes('education') || lower.includes('school') || lower.includes('college') || lower.includes('uni') || lower.includes('course') || lower.includes('tuition') || lower.includes('book')) return '🎓';
-
-  // Food & Groceries
-  if (lower.includes('food') || lower.includes('burger') || lower.includes('eat') || lower.includes('dine') || lower.includes('restaurant') || lower.includes('pizza')) return '🍔';
-  if (lower.includes('grocer') || lower.includes('mart') || lower.includes('supermarket') || lower.includes('bazaar')) return '🛒';
-  if (lower.includes('coffee') || lower.includes('cafe') || lower.includes('tea') || lower.includes('chai')) return '☕';
-
-  // Transport & Auto
-  if (lower.includes('petrol') || lower.includes('fuel') || lower.includes('gas')) return '⛽';
-  if (lower.includes('car') || lower.includes('vehicle') || lower.includes('auto') || lower.includes('maintenance')) return '🚗';
-  if (lower.includes('taxi') || lower.includes('uber') || lower.includes('careem') || lower.includes('ride') || lower.includes('indrive')) return '🚕';
-  if (lower.includes('travel') || lower.includes('flight') || lower.includes('trip') || lower.includes('train')) return '✈️';
-
-  // Bills & Housing
-  if (lower.includes('bill') || lower.includes('utilit') || lower.includes('electric') || lower.includes('internet') || lower.includes('wifi') || lower.includes('water') || lower.includes('stormfiber')) return '⚡';
-  if (lower.includes('rent') || lower.includes('house') || lower.includes('home') || lower.includes('mortgage')) return '🏠';
-
-  // Health & Fitness
-  if (lower.includes('health') || lower.includes('med') || lower.includes('doctor') || lower.includes('pharmacy') || lower.includes('clinic')) return '💊';
-  if (lower.includes('padel') || lower.includes('sport') || lower.includes('gym') || lower.includes('fitness') || lower.includes('workout')) return '🎾';
-
-  // Shopping & Entertainment
-  if (lower.includes('shop') || lower.includes('cloth') || lower.includes('apparel') || lower.includes('fashion') || lower.includes('mall') || lower.includes('shoes')) return '🛍️';
-  if (lower.includes('sub') || lower.includes('software') || lower.includes('app') || lower.includes('tech') || lower.includes('chatgpt')) return '💻';
-  if (lower.includes('movie') || lower.includes('cinema') || lower.includes('netflix') || lower.includes('game') || lower.includes('entertainment')) return '🍿';
-
-  // Personal & Misc
-  if (lower.includes('gift') || lower.includes('charity') || lower.includes('zakat') || lower.includes('donation')) return '🎁';
-  if (lower.includes('family') || lower.includes('kids')) return '👨‍👩‍👧‍👦';
-  if (lower.includes('personal') || lower.includes('grooming') || lower.includes('salon') || lower.includes('hair') || lower.includes('barber')) return '✂️';
-
-  return '🏷️'; 
+type CategoryRow = {
+  id: string;
+  name: string;
+  color?: string | null;
 };
 
 export default function SettingsPage() {
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  
+  const [loading, setLoading] = useState(true);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string; count: number } | null>(
+    null
+  );
 
   const supabase = createClient();
-  const COLORS = ['#E11D48', '#EA580C', '#D97706', '#10B981', '#3B82F6', '#8B5CF6'];
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
   const fetchData = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
-    setUserId(session.user.id);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    setUserId(user.id);
 
-    const { data } = await supabase.from('categories').select('*').eq('user_id', session.user.id).order('created_at', { ascending: true });
+    const { data } = await supabase
+      .from('categories')
+      .select('id, name, color')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
     if (data) setCategories(data);
+    setLoading(false);
   };
 
-  const handleEditClick = (cat: any) => {
+  const handleEditClick = (cat: CategoryRow) => {
     setEditingId(cat.id);
     setEditName(cat.name);
-    setError(null);
-    setSuccess(null);
+    setFormError(null);
   };
 
   const handleSaveEdit = async (id: string) => {
-    setError(null);
-    setSuccess(null);
-    
-    if (!editName.trim()) {
-      setError("Category name cannot be empty.");
+    setFormError(null);
+    const trimmed = editName.trim();
+    if (!trimmed) {
+      setFormError('Category name cannot be empty.');
+      return;
+    }
+    if (
+      categories.some((c) => c.id !== id && c.name.toLowerCase() === trimmed.toLowerCase())
+    ) {
+      setFormError('A category with this name already exists.');
       return;
     }
 
+    const existing = categories.find((cat) => cat.id === id);
+    if (!existing) return;
+
     const { error: updateError } = await supabase
       .from('categories')
-      .update({ name: editName.trim() })
+      .update({ name: trimmed })
       .eq('id', id)
       .eq('user_id', userId);
 
     if (updateError) {
-      setError(updateError.message);
-    } else {
-      setSuccess("Category updated successfully.");
-      setEditingId(null);
-      // Optimistically update the UI
-      setCategories(categories.map(cat => 
-        cat.id === id ? { ...cat, name: editName.trim() } : cat
-      ));
+      setFormError(updateError.message);
+      return;
     }
+
+    if (existing.name !== trimmed) {
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .update({ category_id: trimmed })
+        .eq('user_id', userId)
+        .eq('category_id', existing.name);
+
+      if (expenseError) {
+        toast.error(`Category renamed, but expense sync failed: ${expenseError.message}`);
+        await fetchData();
+        return;
+      }
+    }
+
+    toast.success('Category updated');
+    setEditingId(null);
+    setCategories(categories.map((cat) => (cat.id === id ? { ...cat, name: trimmed } : cat)));
   };
 
-  const handleDelete = async (id: string) => {
-    setError(null);
-    setSuccess(null);
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
 
-    // 1. Safety Check
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      setFormError('Category name cannot be empty.');
+      return;
+    }
+    if (categories.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+      setFormError('A category with this name already exists.');
+      return;
+    }
+
+    const color = getCategoryColor(trimmed);
+    const { data, error: insertError } = await supabase
+      .from('categories')
+      .insert([{ user_id: userId, name: trimmed, color }])
+      .select('id, name, color')
+      .single();
+
+    if (insertError) {
+      setFormError(insertError.message);
+      return;
+    }
+
+    setCategories([...categories, data]);
+    setNewCategoryName('');
+    toast.success('Category created');
+  };
+
+  const requestDelete = async (id: string) => {
+    const target = categories.find((cat) => cat.id === id);
+    if (!target) return;
+
     const { count, error: countError } = await supabase
       .from('expenses')
       .select('*', { count: 'exact', head: true })
-      .eq('category_id', id)
+      .eq('category_id', target.name)
       .eq('user_id', userId);
 
     if (countError) {
-      setError("Failed to check category usage.");
+      toast.error('Failed to check category usage.');
       return;
     }
 
-    if (count && count > 0) {
-      setError(`Cannot delete this category because it is tied to ${count} transaction(s). Please edit or delete those expenses first.`);
+    setDeleteTarget({ id, name: target.name, count: count || 0 });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.count > 0) {
+      toast.error(
+        `Cannot delete — tied to ${deleteTarget.count} transaction(s). Edit or remove those first.`
+      );
+      setDeleteTarget(null);
       return;
     }
 
-    // 2. Optimistic UI update (instantly remove from screen)
     const previousCategories = [...categories];
-    setCategories(categories.filter(cat => cat.id !== id));
+    setCategories(categories.filter((cat) => cat.id !== deleteTarget.id));
+    setDeleteTarget(null);
 
-    // 3. Delete from Database
     const { error: deleteError } = await supabase
       .from('categories')
       .delete()
-      .eq('id', id)
+      .eq('id', deleteTarget.id)
       .eq('user_id', userId);
 
     if (deleteError) {
-      // Revert the screen if the database fails
       setCategories(previousCategories);
-      setError(deleteError.message);
+      toast.error(deleteError.message);
     } else {
-      setSuccess("Category deleted successfully.");
+      toast.success('Category deleted');
     }
   };
 
-  if (!userId) {
-    return <div className="min-h-screen flex items-center justify-center"></div>;
+  if (loading) {
+    return (
+      <AppShell>
+        <PageHeader
+          title="Categories"
+          description="Label spending clearly — rename or remove anytime."
+        />
+        <Card className="p-4">
+          <RowSkeleton />
+          <RowSkeleton />
+          <RowSkeleton />
+        </Card>
+      </AppShell>
+    );
   }
 
   return (
-    <div className="min-h-screen p-4 sm:p-8 font-sans text-zinc-900">
-      <div className="max-w-xl mx-auto mt-8 backdrop-blur-2xl bg-white/40 border border-white/50 shadow-2xl rounded-[32px] p-6 sm:p-10">
-        
-        {/* Header & Navigation */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/" className="p-2.5 bg-white/60 rounded-xl border border-white/50 text-zinc-600 hover:text-zinc-900 hover:bg-white/80 transition-colors shadow-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-          </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Manage Categories</h1>
+    <AppShell>
+      <Dialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete category?"
+        description={
+          deleteTarget && deleteTarget.count > 0
+            ? `"${deleteTarget.name}" is used by ${deleteTarget.count} transaction(s). Remove or reassign those expenses first.`
+            : deleteTarget
+              ? `Delete "${deleteTarget.name}"? This cannot be undone.`
+              : undefined
+        }
+        footer={
+          <>
+            <Button variant="secondary" className="flex-1" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={confirmDelete}
+              disabled={!!deleteTarget && deleteTarget.count > 0}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      />
+
+      <PageHeader
+        title="Categories"
+        description="Label spending clearly — rename or remove anytime."
+      />
+
+      <form
+        onSubmit={handleAddCategory}
+        className="flex flex-col sm:flex-row gap-2 mb-6 items-stretch sm:items-end"
+      >
+        <div className="flex-1">
+          <Input
+            label="New category"
+            type="text"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            placeholder="e.g. Fuel"
+            maxLength={40}
+            error={formError || undefined}
+          />
+        </div>
+        <Button type="submit" variant="accent" className="sm:mb-0">
+          Add category
+        </Button>
+      </form>
+
+      <Card className="overflow-hidden">
+        <div className="px-5 py-3 border-b border-[var(--ef-border)] bg-[var(--ef-gray-50)]">
+          <h2 className="text-xs font-medium text-[var(--ef-muted)]">
+            <span className="ef-emoji mr-1.5" aria-hidden>
+              🏷️
+            </span>
+            Your categories
+            <span className="ml-2 tabular-nums text-[var(--ef-gray-500)]">
+              ({categories.length})
+            </span>
+          </h2>
         </div>
 
-        {error && <div className="mb-6 p-3.5 bg-red-50/90 backdrop-blur-sm border border-red-200 text-red-600 rounded-xl text-sm font-medium shadow-sm">{error}</div>}
-        {success && <div className="mb-6 p-3.5 bg-emerald-50/90 backdrop-blur-sm border border-emerald-200 text-emerald-700 rounded-xl text-sm font-medium shadow-sm">{success}</div>}
-
-        <div className="bg-white/60 rounded-2xl border border-white/50 overflow-hidden shadow-sm">
-          <div className="p-5 border-b border-white/50">
-            <h2 className="text-zinc-500 text-xs font-bold uppercase tracking-wider">Your Categories</h2>
-          </div>
-          
-          <div className="divide-y divide-white/50">
-            {categories.map(cat => (
-              <div key={cat.id} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-white/40 transition-colors">
-                {editingId === cat.id ? (
-                  <div className="flex-1 flex flex-col sm:flex-row gap-3 w-full">
-                    <input 
-                      type="text" 
-                      value={editName} 
-                      onChange={(e) => setEditName(e.target.value)} 
-                      className="px-3 py-2.5 rounded-xl bg-white/80 text-zinc-900 flex-1 text-sm outline-none border border-white/50 focus:ring-2 focus:ring-orange-500/30"
-                    />
-                    
-                    <div className="flex gap-2">
-                      <button onClick={() => handleSaveEdit(cat.id)} className="bg-zinc-950 text-white px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-zinc-800 font-semibold transition-colors shadow-sm cursor-pointer">Save</button>
-                      <button onClick={() => { setEditingId(null); setError(null); }} className="bg-white/80 text-zinc-700 px-4 py-2 rounded-xl text-sm whitespace-nowrap hover:bg-white font-semibold border border-zinc-200 transition-colors cursor-pointer">Cancel</button>
+        <div className="divide-y divide-[var(--ef-border)]">
+          {categories.map((cat) => (
+            <div
+              key={cat.id}
+              className="px-5 py-3.5 flex items-center justify-between gap-3 hover:bg-[var(--ef-gray-50)] transition-colors group"
+            >
+              {editingId === cat.id ? (
+                <div className="flex-1 flex flex-col sm:flex-row gap-2 w-full">
+                  <Input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    aria-label="Category name"
+                    className="flex-1"
+                    maxLength={40}
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="accent" onClick={() => handleSaveEdit(cat.id)}>
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setEditingId(null);
+                        setFormError(null);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CategoryTile name={cat.name} color={cat.color} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[var(--ef-ink)] truncate">
+                        {cat.name}
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-8 h-8 rounded-full bg-orange-50 border border-orange-200 shadow-sm flex items-center justify-center text-[#C83713] text-sm shrink-0">
-                        {getCategoryEmoji(cat.name)}
-                      </div>
-                      <span className="font-semibold text-sm text-zinc-900">{cat.name}</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <button onClick={() => handleEditClick(cat)} className="text-zinc-400 hover:text-zinc-900 p-2 transition-colors rounded-lg hover:bg-white/60 cursor-pointer">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-                      </button>
-                      <button onClick={() => handleDelete(cat.id)} className="text-zinc-400 hover:text-red-600 p-2 transition-colors rounded-lg hover:bg-white/60 cursor-pointer">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-            {categories.length === 0 && (
-              <div className="p-8 text-center text-zinc-500 text-sm font-medium">No categories found. Create some on the dashboard!</div>
-            )}
-          </div>
+                  <div className="flex gap-0.5 opacity-100 sm:opacity-60 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="!px-2"
+                      onClick={() => handleEditClick(cat)}
+                      aria-label={`Edit ${cat.name}`}
+                    >
+                      <Pencil size={14} strokeWidth={1.5} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="!px-2 text-[var(--ef-danger)]"
+                      onClick={() => requestDelete(cat.id)}
+                      aria-label={`Delete ${cat.name}`}
+                    >
+                      <Trash2 size={14} strokeWidth={1.5} />
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          {categories.length === 0 && (
+            <EmptyState
+              emoji="🏷️"
+              title="No categories yet"
+              description="Add one above — it will get an emoji tile automatically."
+            />
+          )}
         </div>
-        
-      </div>
-    </div>
+      </Card>
+    </AppShell>
   );
 }

@@ -3,26 +3,33 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_salaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expense_drafts ENABLE ROW LEVEL SECURITY;
 
--- Create RLS Policies for strict data isolation
+-- Strict data isolation
 CREATE POLICY "Users can manage own profile" ON profiles FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own salaries" ON monthly_salaries FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own categories" ON categories FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own expenses" ON expenses FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage own drafts" ON expense_drafts FOR ALL USING (auth.uid() = user_id);
 
--- Automate default profile and categories on signup
-CREATE OR REPLACE FUNCTION public.handle_new_user() 
+-- Default profile + categories on signup (aligned with app PREDEFINED_CATEGORIES)
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
   INSERT INTO public.profiles (user_id) VALUES (new.id);
-  
-  INSERT INTO public.categories (user_id, name, color) VALUES 
+
+  INSERT INTO public.categories (user_id, name, color) VALUES
     (new.id, 'Housing', '#EF4444'),
     (new.id, 'Food', '#F59E0B'),
     (new.id, 'Transportation', '#3B82F6'),
-    (new.id, 'Padel & Sports', '#10B981'),
-    (new.id, 'Subscriptions', '#8B5CF6');
-    
+    (new.id, 'Utilities', '#EAB308'),
+    (new.id, 'Health', '#10B981'),
+    (new.id, 'Shopping', '#EC4899'),
+    (new.id, 'Entertainment', '#8B5CF6'),
+    (new.id, 'Education', '#6366F1'),
+    (new.id, 'Personal', '#14B8A6'),
+    (new.id, 'Other', '#71717A');
+
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';

@@ -1,4 +1,7 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateExpenseDto } from './create-expense.dto';
-
-export class UpdateExpenseDto extends PartialType(CreateExpenseDto) {}
+export class UpdateExpenseDto {
+  category_id?: string;
+  amount_minor?: number;
+  spent_on?: string;
+  note?: string;
+  payment_method?: 'cash' | 'card' | 'bank';
+}

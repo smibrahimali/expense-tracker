@@ -1,6 +1,13 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+function copyCookies(from: NextResponse, to: NextResponse) {
+  from.cookies.getAll().forEach(({ name, value, ...rest }) => {
+    to.cookies.set(name, value, rest);
+  });
+  return to;
+}
+
 export default async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -13,7 +20,7 @@ export default async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -23,26 +30,42 @@ export default async function proxy(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to the login page
-  // ✅ FIXED: Added an exception so unauthenticated users can access the update-password page
+  const path = request.nextUrl.pathname;
+  const isApi = path.startsWith('/api');
+
+  // Unauthenticated API → JSON 401 (never HTML redirect)
+  if (!user && isApi) {
+    const res = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return copyCookies(supabaseResponse, res);
+  }
+
   if (
-    !user && 
-    !request.nextUrl.pathname.startsWith('/login') && 
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/update-password')
+    !user &&
+    path !== '/login' &&
+    !path.startsWith('/login/') &&
+    !path.startsWith('/auth') &&
+    !path.startsWith('/update-password')
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    return NextResponse.redirect(url);
+    const next = path + request.nextUrl.search;
+    if (next && next !== '/') url.searchParams.set('next', next);
+    const res = NextResponse.redirect(url);
+    return copyCookies(supabaseResponse, res);
   }
 
-  // Redirect authenticated users away from login page
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
+  if (user && (path === '/login' || path.startsWith('/login/'))) {
     const url = request.nextUrl.clone();
-    url.pathname = '/'; // Or /dashboard depending on your setup
-    return NextResponse.redirect(url);
+    const next = request.nextUrl.searchParams.get('next');
+    url.pathname = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+    url.search = '';
+    // Preserve error query only when staying on login — here we leave login
+    const res = NextResponse.redirect(url);
+    return copyCookies(supabaseResponse, res);
   }
 
   return supabaseResponse;

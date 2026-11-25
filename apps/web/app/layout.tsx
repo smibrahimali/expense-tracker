@@ -1,11 +1,16 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Geist } from 'next/font/google';
+import { Toaster } from 'sonner';
 
-const inter = Inter({ subsets: ['latin'] });
+const geist = Geist({
+  subsets: ['latin'],
+  variable: '--font-geist',
+  weight: ['400', '500', '600'],
+});
 
 export const metadata: Metadata = {
-  title: 'Expense Tracker',
+  title: 'ExpenseFlow',
   description: 'Personal finance and expense tracking',
 };
 
@@ -15,9 +20,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} bg-black text-zinc-100 antialiased min-h-screen selection:bg-emerald-500/30`}>
+    <html lang="en" className={geist.variable}>
+      <body className={`${geist.className} text-[var(--ef-ink)] antialiased min-h-screen`}>
         {children}
+        <Toaster
+          theme="dark"
+          position="bottom-center"
+          toastOptions={{
+            className:
+              '!rounded-[var(--ef-radius-sm)] !border-[var(--ef-border)] !shadow-[var(--ef-shadow-md)] !bg-[var(--ef-surface-elevated)] !text-[var(--ef-ink)]',
+          }}
+        />
       </body>
     </html>
   );

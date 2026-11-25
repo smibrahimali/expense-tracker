@@ -6,11 +6,13 @@ import { ReportsController } from './reports.controller';
 import { ReportsService } from './reports.service';
 import { ExpensesModule } from './expenses/expenses.module';
 import { SupabaseModule } from './supabase/supabase.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     SupabaseModule,
+    AuthModule,
     ExpensesModule,
   ],
   controllers: [AppController, ReportsController],

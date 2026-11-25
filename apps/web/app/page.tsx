@@ -13,11 +13,13 @@ export default function Home() {
   useEffect(() => {
     // 1. Check for an existing session on load
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
         router.push('/login');
       } else {
-        setUserId(session.user.id);
+        setUserId(user.id);
       }
       setLoading(false);
     };
@@ -41,25 +43,22 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <p className="text-white/90 font-medium tracking-wide animate-pulse">
-          Loading your workspace...
-        </p>
+        <p className="text-[var(--ef-muted)] text-sm font-medium animate-pulse">Loading workspace…</p>
       </div>
     );
   }
 
-  // If no user, the useEffect will redirect them. Render nothing in the meantime.
   if (!userId) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="bg-white p-6 rounded-2xl shadow-xl text-center max-w-sm w-full">
-          <p className="font-bold text-zinc-900 mb-1">Session Not Found</p>
-          <p className="text-sm text-zinc-500 mb-5">We couldn't detect a valid Supabase login.</p>
-          <button 
-            onClick={() => router.push('/login')} 
-            className="bg-zinc-950 text-white px-5 py-2.5 rounded-full text-sm font-medium w-full"
+        <div className="ef-panel p-6 text-center max-w-sm w-full">
+          <p className="font-semibold text-[var(--ef-ink)] mb-1">Session not found</p>
+          <p className="text-sm text-[var(--ef-muted)] mb-5">We couldn&apos;t detect a valid login.</p>
+          <button
+            onClick={() => router.push('/login')}
+            className="ef-btn-primary w-full"
           >
-            Go to Login
+            Go to login
           </button>
         </div>
       </div>

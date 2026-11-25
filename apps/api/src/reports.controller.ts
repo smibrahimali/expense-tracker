@@ -1,17 +1,35 @@
-import { Controller, Get, Query, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Req,
+  UseGuards,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { ReportsService } from './reports.service';
+import { SupabaseAuthGuard } from './auth/supabase-auth.guard';
+
+type AuthedRequest = {
+  user?: { id: string };
+};
 
 @Controller('reports')
+@UseGuards(SupabaseAuthGuard)
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('monthly')
-  async getMonthlyReport(@Req() req: Record<string, unknown>, @Query('month') month: string) {
-    const request = req as { user?: { id?: string }, headers?: Record<string, string> };
-    const userId = request.user?.id || request.headers?.['x-user-id']; 
-
+  async getMonthlyReport(
+    @Req() req: AuthedRequest,
+    @Query('month') month: string,
+  ) {
+    const userId = req.user?.id;
     if (!userId) {
-      return { error: 'Unauthorized: No user ID found' };
+      throw new UnauthorizedException('Authenticated user not found on request.');
+    }
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      throw new BadRequestException('Query param month must be YYYY-MM.');
     }
 
     return this.reportsService.getMonthlyReport(userId, month);
