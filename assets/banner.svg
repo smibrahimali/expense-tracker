@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-label="ExpenseFlow — AI Personal Finance">
+  <title>ExpenseFlow</title>
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#E4E4E7" stroke-opacity="0.06" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#161B22" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0D1117" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Base -->
+  <rect width="1200" height="320" fill="#0D1117"/>
+  <rect width="1200" height="320" fill="url(#grid)"/>
+  <rect width="1200" height="320" fill="url(#fade)"/>
+
+  <!-- Architectural frame -->
+  <rect x="48" y="48" width="1104" height="224" fill="none" stroke="#E4E4E7" stroke-opacity="0.14" stroke-width="1"/>
+  <line x1="48" y1="112" x2="1152" y2="112" stroke="#E4E4E7" stroke-opacity="0.08" stroke-width="1"/>
+  <line x1="280" y1="48" x2="280" y2="272" stroke="#E4E4E7" stroke-opacity="0.08" stroke-width="1"/>
+
+  <!-- Accent bar -->
+  <rect x="48" y="48" width="4" height="224" fill="#E4E4E7" fill-opacity="0.55"/>
+
+  <!-- Brand mark -->
+  <text x="72" y="92" fill="#E4E4E7" fill-opacity="0.45" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" letter-spacing="4">PORTFOLIO / FINTECH</text>
+
+  <!-- Title -->
+  <text x="72" y="168" fill="#E4E4E7" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="52" font-weight="700" letter-spacing="2">EXPENSEFLOW</text>
+  <text x="72" y="208" fill="#E4E4E7" fill-opacity="0.72" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" letter-spacing="3">// AI PERSONAL FINANCE</text>
+
+  <!-- Subtitle -->
+  <text x="72" y="250" fill="#E4E4E7" fill-opacity="0.42" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" letter-spacing="1.5">VOICE &amp; TEXT AI LOGGER · MINOR-UNIT LEDGER · NEXT.JS + NESTJS + SUPABASE RLS</text>
+</svg>

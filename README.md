@@ -1,35 +1,89 @@
-# ExpenseFlow — Personal Expense Tracker
+<div align="center">
 
-Internship project for tracking personal spending with salary budgeting, category insights, and an AI chat assistant that can log, edit, and delete expenses from natural language (with optional voice input).
+<img src="assets/banner.svg" alt="ExpenseFlow — AI Personal Finance" width="100%" />
 
-Monorepo: **Next.js** frontend + **NestJS** API + **Supabase** (Auth, Postgres, RLS).
+<br />
+
+**Natural-language expense logging with a minor-unit ledger, JWT-guarded Nest API, and Supabase RLS.**
+
+<br />
+
+<a href="https://expense-tracker-tjv1-amber.vercel.app/">
+  <img src="https://img.shields.io/badge/Live%20Demo-0D1117?style=for-the-badge&logo=vercel&logoColor=E4E4E7" alt="Live Demo" />
+</a>
+&nbsp;
+<a href="https://github.com/smibrahimali">
+  <img src="https://img.shields.io/badge/Back%20to%20Profile-161B22?style=for-the-badge&logo=github&logoColor=E4E4E7" alt="Back to Profile" />
+</a>
+
+</div>
 
 ---
 
-## Features
+## System Architecture
 
-- Email/password auth via Supabase (login, signup, password update, session proxy)
-- Dashboard with monthly/all-time spend, salary remaining, savings, and 6-month trend chart
-- Expense CRUD with payment method, notes, and large-expense warning (>30% of salary)
-- Category management synced with expense category names
-- AI Quick Logger (Groq) with multi-turn drafts, edit/delete flows, and voice-to-text
-- NestJS REST API for expenses + monthly reports (JWT-protected)
+```mermaid
+flowchart LR
+  U["User<br/>Web / Voice"] --> W["Next.js 16 App"]
+
+  W -->|"POST /api/chat-logger"| AI["Vercel AI SDK + Groq"]
+  AI --> D[("expense_drafts<br/>Supabase")]
+
+  W -->|"Bearer JWT"| N["NestJS /api/v1"]
+  N --> DB[("Supabase Postgres + RLS")]
+```
+
+---
+
+## Core Engineering Highlights
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>AI Quick Logger &amp; Voice</h3>
+      <p>Natural-language create / edit / delete via Groq. Multi-turn sessions persist in <code>expense_drafts</code>. Browser speech-to-text feeds the same chat pipeline.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Financial Precision</h3>
+      <p>Amounts stored as <code>amount_minor</code> (bigint) — no floating-point drift. Dashboard covers 6-month trends and flags expenses above 30% of salary.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>Auth &amp; Multi-Layer Security</h3>
+      <p>Chat routes derive user IDs from the Supabase session cookie. NestJS validates Bearer JWTs; Postgres RLS isolates direct client access.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>Monorepo &amp; Schema Design</h3>
+      <p>Decoupled Next.js + NestJS apps. Ordered SQL migrations <code>001</code>–<code>003</code>. Category rename syncs matching expense <code>category_id</code> name rows.</p>
+    </td>
+  </tr>
+</table>
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, Recharts |
-| Auth & DB | Supabase Auth + Postgres + RLS |
-| AI | Vercel AI SDK + Groq |
-| API | NestJS 12 |
-| Tests | Vitest |
+<div align="center">
+
+<img src="https://img.shields.io/badge/Next.js-16-161B22?style=flat-square&logo=nextdotjs&logoColor=E4E4E7" alt="Next.js 16" />
+<img src="https://img.shields.io/badge/React-19-161B22?style=flat-square&logo=react&logoColor=E4E4E7" alt="React 19" />
+<img src="https://img.shields.io/badge/TypeScript-5-161B22?style=flat-square&logo=typescript&logoColor=E4E4E7" alt="TypeScript" />
+<img src="https://img.shields.io/badge/Tailwind_CSS-4-161B22?style=flat-square&logo=tailwindcss&logoColor=E4E4E7" alt="Tailwind CSS 4" />
+<img src="https://img.shields.io/badge/Recharts-3-161B22?style=flat-square&logo=chartdotjs&logoColor=E4E4E7" alt="Recharts" />
+<img src="https://img.shields.io/badge/NestJS-12-161B22?style=flat-square&logo=nestjs&logoColor=E4E4E7" alt="NestJS 12" />
+<img src="https://img.shields.io/badge/Supabase-Auth%20%7C%20Postgres%20%7C%20RLS-161B22?style=flat-square&logo=supabase&logoColor=E4E4E7" alt="Supabase" />
+<img src="https://img.shields.io/badge/Vercel_AI_SDK%20%2B%20Groq-161B22?style=flat-square&logo=vercel&logoColor=E4E4E7" alt="Vercel AI SDK + Groq" />
+<img src="https://img.shields.io/badge/Vitest-4-161B22?style=flat-square&logo=vitest&logoColor=E4E4E7" alt="Vitest" />
+
+</div>
 
 ---
 
-## Project Structure
+<details>
+<summary><b>Project Structure &amp; Database Migrations</b></summary>
+
+<br />
 
 ```text
 expense-tracker/
@@ -40,23 +94,22 @@ expense-tracker/
 └── README.md
 ```
 
----
+**Core tables:** `profiles`, `monthly_salaries`, `categories`, `expenses`, `expense_drafts`.
 
-## Database
+**Design note:** `expenses.category_id` stores the **category name** (text), not a UUID. The `categories` table holds per-user metadata; renaming a category also updates matching expense rows.
 
-Core tables: `profiles`, `monthly_salaries`, `categories`, `expenses`, `expense_drafts`.
-
-Important design note: `expenses.category_id` stores the **category name** (text), not a UUID. The `categories` table holds per-user category metadata; renaming a category also updates matching expense rows.
-
-Apply migrations in order:
+**Apply migrations in order:**
 
 1. `001_schema.sql`
 2. `002_rls_and_seeds.sql`
-3. `003_align_existing_schema.sql` (for databases created from older UUID-based schema)
+3. `003_align_existing_schema.sql` (for databases created from the older UUID-based schema)
 
----
+</details>
 
-## Getting Started
+<details>
+<summary><b>Local Setup &amp; Environment Variables</b></summary>
+
+<br />
 
 ### Prerequisites
 
@@ -106,38 +159,28 @@ npm run start:dev
 # http://localhost:3001/api/v1
 ```
 
----
+</details>
 
-## API
+<details>
+<summary><b>API Reference</b></summary>
+
+<br />
 
 ### Next.js
 
-- `POST /api/chat-logger` — authenticated conversational expense create/edit/delete
+- `POST /api/chat-logger` — authenticated conversational expense create / edit / delete
 
 ### NestJS (`/api/v1`)
 
 Requires `Authorization: Bearer <supabase_access_token>`.
 
-- `POST /expenses`
-- `GET /expenses`
-- `GET /expenses/:id`
-- `PATCH /expenses/:id`
-- `DELETE /expenses/:id`
-- `GET /reports/monthly?month=YYYY-MM`
+| Method | Endpoint | Notes |
+| --- | --- | --- |
+| `POST` | `/expenses` | Create expense |
+| `GET` | `/expenses` | List expenses |
+| `GET` | `/expenses/:id` | Get one |
+| `PATCH` | `/expenses/:id` | Update |
+| `DELETE` | `/expenses/:id` | Delete |
+| `GET` | `/reports/monthly?month=YYYY-MM` | Monthly report |
 
----
-
-## Security notes
-
-- Chat logger derives the user from the Supabase session cookie (does not trust client `userId`)
-- Nest expenses/reports endpoints verify the Bearer JWT via Supabase Auth
-- RLS policies isolate user data for direct Supabase client access
-
----
-
-## Internship highlights
-
-- End-to-end personal finance product with auth, budgeting, and analytics
-- Money stored in minor units to avoid floating-point errors
-- AI-assisted logging with draft sessions and voice input
-- Schema/RLS design plus a JWT-protected Nest API layer
+</details>
